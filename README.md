@@ -81,3 +81,9 @@ The ones you'll actually set:
 | `SHORTENER_TTL_DAYS` | `0` | default link lifetime (`0` = forever) |
 | `SHORTENER_RATE` | `30` | creates per IP per minute (`0` = off) |
 | `SHORTENER_TRUST_PROXY` | off | set `1` behind a reverse proxy to read `X-Forwarded-For` |
+
+## Support
+
+If this project is useful to you, you can support development on Ko-fi:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B3L1265MM0)
