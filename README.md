@@ -9,12 +9,13 @@ can run to several kilobytes.
 - **Two code styles.**
   - `code` -- short and random: `s.example.com/k7Rm2pq`
   - `words` -- readable, Twitch-clip style: `s.example.com/swift-amber-otter`
-- **No account, no tracking beyond an optional hit counter.**
+- **No account, no tracking beyond an optional hit counter.** Identical links
+  are de-duplicated -- shortening the same URL twice returns the same code.
 - **Not an open redirector.** It only shortens links pointing at a host on its
   allowlist (your Tab Share viewer), which is what keeps it off the phishing radar.
-- **Zero dependencies.** Plain Node 20+. One JSON file for storage locally;
-  swap in SQLite / KV for a real deployment. A Cloudflare Worker port is in
-  [`deploy/`](deploy/).
+- **Zero dependencies.** Plain Node 20+ (24+ for the SQLite backend). Storage is
+  a JSON file or `node:sqlite`, both built in. A Cloudflare Worker port and
+  Linux / Windows installers are in [`deploy/`](deploy/).
 
 Licensed **AGPL-3.0-only** (it's a network service -- same terms as Tab Share).
 
@@ -73,7 +74,8 @@ The ones you'll actually set:
 | `SHORTENER_BASE` | `http://localhost:8779` | public origin, no trailing slash |
 | `SHORTENER_HOSTS` | `kaikayy.github.io` | comma list of allowed target hosts (empty = open mode) |
 | `SHORTENER_PORT` / `SHORTENER_HOST` | `8779` / `127.0.0.1` | bind address |
-| `SHORTENER_STORE` | `data/links.json` | JSON store path |
+| `SHORTENER_STORE` | `data/links.json` | store file path |
+| `SHORTENER_STORE_BACKEND` | infer from path | `file` or `sqlite` (Node 24+) |
 | `SHORTENER_TTL_DAYS` | `0` | default link lifetime (`0` = forever) |
 | `SHORTENER_RATE` | `30` | creates per IP per minute (`0` = off) |
 | `SHORTENER_TRUST_PROXY` | off | set `1` behind a reverse proxy to read `X-Forwarded-For` |

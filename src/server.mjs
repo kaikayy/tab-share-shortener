@@ -15,13 +15,13 @@
 import http from "node:http";
 import { Buffer } from "node:buffer";
 import { config } from "./config.mjs";
-import { LinkStore } from "./store.mjs";
+import { openStore } from "./store.mjs";
 import { RateLimiter } from "./ratelimit.mjs";
 import { validateTarget } from "./validate.mjs";
 import { generate, normalizeMode, looksLikeCode } from "./codes.mjs";
 import { KEYSPACE_BITS } from "./words.mjs";
 
-const store = new LinkStore();
+const store = openStore();
 const limiter = new RateLimiter(config.ratePerMinute);
 setInterval(() => limiter.sweep(), 60_000).unref?.();
 
@@ -160,22 +160,35 @@ async function handleShorten(req, res, urlObj) {
       : sendText(res, check.status, check.error);
   }
 
+  // Dedup: an identical target that already has a live code gets that code back
+  // (idempotent -- avoids minting a fresh code every time the same link is
+  // shortened). Requesting a different style does not re-mint; the stored code
+  // and its style are returned as-is.
   let code;
-  try {
-    code = generate(mode, (c) => store.has(c));
-  } catch (e) {
-    return sendJson(res, 503, { error: e.message });
+  let entry;
+  let reused = false;
+  const hit = store.findByUrl(check.url);
+  if (hit) {
+    ({ code, entry } = hit);
+    reused = true;
+  } else {
+    try {
+      code = generate(mode, (c) => store.has(c));
+    } catch (e) {
+      return sendJson(res, 503, { error: e.message });
+    }
+    entry = store.put(code, { url: check.url, mode, ttlDays });
   }
 
-  const entry = store.put(code, { url: check.url, mode, ttlDays });
   const shortUrl = `${config.base}/${code}`;
 
   if (req.method === "POST") {
-    return sendJson(res, 201, {
+    return sendJson(res, reused ? 200 : 201, {
       code,
       shortUrl,
-      mode,
+      mode: entry.mode,
       expires: entry.expires || null,
+      reused,
     });
   }
   // Compat contract: bare short URL as text/plain.
@@ -273,8 +286,9 @@ server.on("clientError", (err, socket) => {
 function shutdown() {
   try {
     store.flushSync();
+    store.close();
   } catch (e) {
-    console.error("flush on exit failed:", e);
+    console.error("store close on exit failed:", e);
   }
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 2000).unref?.();

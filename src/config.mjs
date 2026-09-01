@@ -73,8 +73,15 @@ export const config = {
   /** Creation requests allowed per IP per rolling minute. 0 disables the limit. */
   ratePerMinute: envInt("SHORTENER_RATE", 30),
 
-  /** Path to the JSON link store. */
+  /** Path to the link store file. */
   storePath: envStr("SHORTENER_STORE", path.join(root, "data", "links.json")),
+
+  /**
+   * Storage backend: "file" (JSON, default for local) or "sqlite" (node:sqlite,
+   * Node 22.5+, for a real server). Empty = infer from the store path
+   * (.db/.sqlite/.sqlite3 -> sqlite, else file).
+   */
+  storeBackend: envStr("SHORTENER_STORE_BACKEND", ""),
 
   /** Trust X-Forwarded-For for the client IP (set only behind a proxy you control). */
   trustProxy: envStr("SHORTENER_TRUST_PROXY", "") === "1",

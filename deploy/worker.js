@@ -104,14 +104,29 @@ async function freeCode(mode, env) {
   throw new Error("code space exhausted");
 }
 
+async function urlKey(url) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(url));
+  const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return "u:" + hex;
+}
+
 async function shorten(inputUrl, mode, env) {
   const check = validate(inputUrl, env);
   if (!check.ok) return check;
   const m = normalizeMode(mode);
+  const base = String(env.SHORTENER_BASE || "").replace(/\/+$/, "");
+
+  // Dedup: identical target already shortened -> return the existing code.
+  const uk = await urlKey(check.url);
+  const existing = await env.LINKS.get(uk);
+  if (existing && (await env.LINKS.get(existing))) {
+    return { ok: true, code: existing, mode: m, shortUrl: `${base}/${existing}`, reused: true };
+  }
+
   const code = await freeCode(m, env);
   await env.LINKS.put(code, check.url, { expirationTtl: KV_TTL_SECONDS });
-  const base = String(env.SHORTENER_BASE || "").replace(/\/+$/, "");
-  return { ok: true, code, mode: m, shortUrl: `${base}/${code}` };
+  await env.LINKS.put(uk, code, { expirationTtl: KV_TTL_SECONDS });
+  return { ok: true, code, mode: m, shortUrl: `${base}/${code}`, reused: false };
 }
 
 function redirectResponse(url) {
@@ -151,7 +166,9 @@ export default {
       else body = Object.fromEntries(new URLSearchParams(await req.text()));
       if (!body) return json({ error: "invalid body" }, 400);
       const r = await shorten(body.url, body.mode, env);
-      return r.ok ? json({ code: r.code, shortUrl: r.shortUrl, mode: r.mode }, 201) : json({ error: r.error }, r.status);
+      return r.ok
+        ? json({ code: r.code, shortUrl: r.shortUrl, mode: r.mode, reused: r.reused }, r.reused ? 200 : 201)
+        : json({ error: r.error }, r.status);
     }
 
     if (p === "/new" && req.method === "GET") {

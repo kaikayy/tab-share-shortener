@@ -56,6 +56,17 @@ test("words mode slug shape", async () => {
   assert.match((await r.json()).code, /^[a-z]+-[a-z]+-[a-z]+(-[2-9a-km-zA-HJ-NP-Z]{2})?$/);
 });
 
+test("dedup: same URL twice -> same code, reused:true, 200", async () => {
+  const env = makeEnv();
+  const target = `${VIEWER}#dedup_worker`;
+  const a = await (await worker.fetch(req("/api/shorten", jbody({ url: target, mode: "code" })), env)).json();
+  const rb = await worker.fetch(req("/api/shorten", jbody({ url: target, mode: "words" })), env);
+  const b = await rb.json();
+  assert.equal(rb.status, 200);
+  assert.equal(b.code, a.code);
+  assert.equal(b.reused, true);
+});
+
 test("compat GET /new", async () => {
   const target = `${VIEWER}#compat`;
   const r = await worker.fetch(req(`/new?mode=words&url=${encodeURIComponent(target)}`), makeEnv());

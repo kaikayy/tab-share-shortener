@@ -17,14 +17,19 @@ Request body, `application/json` (or `application/x-www-form-urlencoded`):
 | `mode` | no | `"code"` (default) or `"words"` |
 | `ttlDays` | no | overrides `SHORTENER_TTL_DAYS`; `0` = never expires |
 
-Response `201`:
+Response `201` (a fresh code) or `200` (an existing one -- see dedup):
 
 ```json
 { "code": "swift-amber-otter",
   "shortUrl": "https://s.example.com/swift-amber-otter",
   "mode": "words",
-  "expires": null }
+  "expires": null,
+  "reused": false }
 ```
+
+**Dedup.** Shortening a URL that already has a live code returns that code with
+`"reused": true` and status `200`. The stored code and its style are returned
+unchanged -- asking for a different `mode` does not mint a new code.
 
 Errors: `400` bad/missing url or wrong scheme, `403` host not on the
 allowlist, `413` url over `SHORTENER_MAX_URL`, `429` rate limited,

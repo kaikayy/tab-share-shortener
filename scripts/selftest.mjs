@@ -137,6 +137,16 @@ test("POST /api/shorten (words) returns a readable slug", async () => {
   assert.match(JSON.parse(r.text).code, /^[a-z]+-[a-z]+-[a-z]+(-[2-9a-km-zA-HJ-NP-Z]{2})?$/);
 });
 
+test("shortening the same URL twice returns the same code (dedup)", async () => {
+  const target = `${VIEWER}#dedup_me_v3`;
+  const a = JSON.parse((await api("POST", "/api/shorten", { json: { url: target, mode: "code" } })).text);
+  const b = await api("POST", "/api/shorten", { json: { url: target, mode: "words" } });
+  const bj = JSON.parse(b.text);
+  assert.equal(bj.code, a.code); // same code, even though a different style was asked for
+  assert.equal(bj.reused, true);
+  assert.equal(b.status, 200); // reuse is 200, fresh is 201
+});
+
 test("compat GET /new?url= returns text/plain short URL", async () => {
   const target = `${VIEWER}#compatcheck`;
   const r = await api("GET", `/new?url=${encodeURIComponent(target)}&mode=words`);

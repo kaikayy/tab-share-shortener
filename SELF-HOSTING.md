@@ -21,8 +21,24 @@ SHORTENER_TRUST_PROXY=1 \
 node src/server.mjs
 ```
 
-Run it under systemd / pm2 / a container so it restarts. A ready-to-edit unit
-is in [`deploy/tab-share-shortener.service`](deploy/tab-share-shortener.service):
+### Installer
+
+[`deploy/install.sh`](deploy/install.sh) does the whole thing -- prompts for the
+base URL / allowed hosts / port / backend, copies the source into place, writes a
+systemd unit (system-wide as root, else a `--user` unit), and starts it:
+
+```bash
+sudo bash deploy/install.sh        # system service at /opt, runs as user `tabshare`
+bash deploy/install.sh             # or a per-user service, no root
+```
+
+Re-run it to update. Preset any answer via env
+(`SHORTENER_BASE=... SHORTENER_HOSTS=... bash deploy/install.sh`).
+
+### Or by hand
+
+A ready-to-edit unit is in
+[`deploy/tab-share-shortener.service`](deploy/tab-share-shortener.service):
 
 ```bash
 # per-user, no root:
@@ -52,11 +68,29 @@ server {
 
 ### Storage
 
-Default is one JSON file (`data/links.json`), rewritten atomically after each
-change. Fine into the tens of thousands of links. **Back it up** -- losing it
-404s every short link. For more volume, replace `src/store.mjs` (its surface is
-just `get / has / put / delete / bumpHits / stats`) with SQLite or Redis; the
-rest of the service doesn't change.
+Two built-in backends, same interface, selected by `SHORTENER_STORE_BACKEND`
+(or inferred from the store path's extension):
+
+| Backend | When | Notes |
+|---|---|---|
+| `file` (default) | local, small self-host | one JSON file, rewritten atomically after each change; whole table in memory. Fine into the tens of thousands of links. |
+| `sqlite` | a real server | `node:sqlite` (built in, Node 24+), WAL mode. Durable per-write, scales far past the file backend, safe to copy for backups while running. Zero extra dependencies. |
+
+```bash
+SHORTENER_STORE_BACKEND=sqlite SHORTENER_STORE=/var/lib/tab-share-shortener/links.sqlite node src/server.mjs
+```
+
+**Back up the store file** either way -- losing it 404s every short link. For
+SQLite: `sqlite3 links.sqlite ".backup 'backup.sqlite'"` or just copy the file
+(WAL makes a plain `cp` safe enough; `.backup` is cleaner).
+
+Need Redis / Postgres instead? Implement the surface in
+[`src/store-file.mjs`](src/store-file.mjs) (`get / has / put / delete /
+bumpHits / findByUrl / stats / flushSync / close`) and wire it into
+`openStore()` in `src/store.mjs`. Nothing else changes.
+
+Identical links are **de-duplicated**: shortening the same URL twice returns the
+same code (the response carries `"reused": true`).
 
 ### Keeping it from becoming a phishing tool
 
