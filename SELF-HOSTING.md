@@ -7,7 +7,7 @@ options.
 
 ## Path A -- Node on your own server
 
-Prerequisites: **Node ≥ 20**. No npm install (zero dependencies).
+Prerequisites: **Node 20+**. No npm install (zero dependencies).
 
 ```bash
 git clone https://github.com/kaikayy/tab-share-shortener

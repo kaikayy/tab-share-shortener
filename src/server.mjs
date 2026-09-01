@@ -182,7 +182,7 @@ const INFO_PAGE =
   `<h1>Tab Share link shortener</h1>` +
   `<p>Shorten a Tab Share link:</p>` +
   `<pre><code>curl -X POST ${esc(config.base)}/api/shorten \\\n  -H 'content-type: application/json' \\\n  -d '{"url":"https://.../#token","mode":"words"}'</code></pre>` +
-  `<p>Modes: <code>code</code> (random) · <code>words</code> (readable). ` +
+  `<p>Modes: <code>code</code> (random) or <code>words</code> (readable). ` +
   `Source: <a href="https://github.com/kaikayy/multi-link-share">AGPL-3.0</a>.</p>`;
 
 /* ------------------------------ router ------------------------------ */

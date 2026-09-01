@@ -12,7 +12,7 @@ can run to several kilobytes.
 - **No account, no tracking beyond an optional hit counter.**
 - **Not an open redirector.** It only shortens links pointing at a host on its
   allowlist (your Tab Share viewer), which is what keeps it off the phishing radar.
-- **Zero dependencies.** Plain Node ≥ 20. One JSON file for storage locally;
+- **Zero dependencies.** Plain Node 20+. One JSON file for storage locally;
   swap in SQLite / KV for a real deployment. A Cloudflare Worker port is in
   [`deploy/`](deploy/).
 

@@ -26,8 +26,8 @@ Response `201`:
   "expires": null }
 ```
 
-Errors: `400` bad/again-missing url or wrong scheme · `403` host not on the
-allowlist · `413` url over `SHORTENER_MAX_URL` · `429` rate limited ·
+Errors: `400` bad/missing url or wrong scheme, `403` host not on the
+allowlist, `413` url over `SHORTENER_MAX_URL`, `429` rate limited,
 `503` code space exhausted.
 
 ### Compat -- `GET /new?url=<percent-encoded link>&mode=<code|words>`
