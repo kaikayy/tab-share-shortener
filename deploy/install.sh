@@ -135,7 +135,10 @@ mkdir -p "$(dirname "$UNIT")"
 
 # --- start --------------------------------------------------------------
 $SYSTEMCTL daemon-reload
-$SYSTEMCTL enable --now tab-share-shortener
+$SYSTEMCTL enable tab-share-shortener
+# `enable --now` won't restart an already-running service, so a re-run kept the
+# old code -- always restart so an update actually takes effect.
+$SYSTEMCTL restart tab-share-shortener
 [ "$IS_ROOT" -eq 0 ] && loginctl enable-linger "$RUN_USER" >/dev/null 2>&1 || true
 
 sleep 1
