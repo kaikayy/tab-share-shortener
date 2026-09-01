@@ -35,22 +35,20 @@ curl -X POST localhost:8779/api/shorten \
 # -> {"code":"swift-amber-otter","shortUrl":"http://localhost:8779/swift-amber-otter",...}
 ```
 
-## Wire it into the extension (local)
+## Wire it into the extension
 
-The service already speaks the extension's existing **custom endpoint** contract,
-so no extension changes are needed to try it:
+Tab Share ships a built-in **Tab Share shortener** provider (Options -> Shorten
+links) with a *Normal / Readable words* toggle. It's pre-filled with the
+first-party public instance at **`https://s.kaikay.de`**, which allow-lists the
+built-in viewer -- so the default setup needs no configuration. Off until you
+turn it on; still opt-in per link.
 
-1. `npm run dev` here.
-2. In Tab Share's **Options -> Shorten links -> Custom endpoint**, paste
-   `http://localhost:8779/new?url=` and Save (approve the host prompt).
-3. Optionally tick **Shorten automatically**.
-4. Create a share link -- it comes back as `http://localhost:8779/<code>`.
+To point it at your own instance, put its address in that same field. For a
+local dev instance: `npm run dev` here, then set the address to
+`http://localhost:8779` in a `DEV_LOCALHOST=1` extension build.
 
-For the readable mode over the compat endpoint, use
-`http://localhost:8779/new?mode=words&url=`.
-
-A native provider entry (and a mode toggle in the popup) is a follow-up change
-in the extension repo -- see [`ROADMAP` in multi-link-share](https://github.com/kaikayy/multi-link-share/blob/main/ROADMAP.md).
+Native contract: `GET <address>/new?url=<enc>` (add `&mode=words`) -> the short
+URL as plain text.
 
 ## API
 

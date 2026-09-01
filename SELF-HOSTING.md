@@ -32,8 +32,27 @@ sudo bash deploy/install.sh        # system service at /opt, runs as user `tabsh
 bash deploy/install.sh             # or a per-user service, no root
 ```
 
-Re-run it to update. Preset any answer via env
-(`SHORTENER_BASE=... SHORTENER_HOSTS=... bash deploy/install.sh`).
+Re-run it to update -- config is read back from the existing unit, so a bare
+`NONINTERACTIVE=1 bash deploy/install.sh` re-deploys cleanly. Preset any answer
+via env to change it (`SHORTENER_BASE=... SHORTENER_HOSTS=... bash deploy/install.sh`).
+
+### Auto-update on push
+
+Run the shortener from a **git checkout** (a read-only [deploy
+key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys)
+is enough) and install a timer that pulls `main` and redeploys:
+
+```bash
+git clone git@github.com:kaikayy/tab-share-shortener.git ~/files/tab-share-shortener
+cd ~/files/tab-share-shortener
+bash deploy/install.sh            # first deploy (set SHORTENER_BASE=... SHORTENER_HOSTS=...)
+bash deploy/install-autoupdate.sh # checks every 10 min; pass e.g. 1h to slow it down
+```
+
+[`deploy/auto-update.sh`](deploy/auto-update.sh) does nothing when the checkout
+is already current; on a new commit it `git pull --ff-only`s and re-runs
+`install.sh` (which restarts the service). Watch it with
+`journalctl --user -u tab-share-shortener-update.service -f`.
 
 ### Or by hand
 
@@ -80,14 +99,23 @@ Two built-in backends, same interface, selected by `SHORTENER_STORE_BACKEND`
 SHORTENER_STORE_BACKEND=sqlite SHORTENER_STORE=/var/lib/tab-share-shortener/links.sqlite node src/server.mjs
 ```
 
-**Back up the store file** either way -- losing it 404s every short link. For
-SQLite: `sqlite3 links.sqlite ".backup 'backup.sqlite'"` or just copy the file
-(WAL makes a plain `cp` safe enough; `.backup` is cleaner).
+**Back up the store** either way -- losing it 404s every short link.
+[`deploy/backup.sh`](deploy/backup.sh) copies `links.json` daily and keeps the
+last 30; add it to cron:
 
-Need Redis / Postgres instead? Implement the surface in
-[`src/store-file.mjs`](src/store-file.mjs) (`get / has / put / delete /
-bumpHits / findByUrl / stats / flushSync / close`) and wire it into
-`openStore()` in `src/store.mjs`. Nothing else changes.
+```cron
+15 4 * * *  bash "$HOME/files/tab-share-shortener/deploy/backup.sh"
+```
+
+For SQLite: `sqlite3 links.sqlite ".backup 'backup.sqlite'"` or just copy the
+file (WAL makes a plain `cp` safe enough).
+
+**On the roadmap:** the `sqlite` backend needs Node 24, so an older box is stuck
+on `file`. A **MySQL / MariaDB** backend is planned so the shortener can
+run on shared PHP hosting (KeyHelp, cPanel, ...) that has a database but no way
+to run a persistent Node process. Same `openStore()` surface: `get / has / put
+/ delete / bumpHits / findByUrl / stats / flushSync / close` in
+[`src/store-file.mjs`](src/store-file.mjs), wired into `src/store.mjs`.
 
 Identical links are **de-duplicated**: shortening the same URL twice returns the
 same code (the response carries `"reused": true`).

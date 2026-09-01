@@ -7,7 +7,9 @@
 #   Non-root: user service under ~/.local/share, systemd --user unit
 #
 # Re-run to update: it copies the current source over the install dir and
-# restarts. Config you entered before is reused unless you pass it again.
+# restarts. Config from a previous install is read back from the systemd unit,
+# so a bare `NONINTERACTIVE=1 bash deploy/install.sh` re-deploys cleanly. Pass
+# an env var to change that value; everything else is preserved.
 #
 # Env you can preset (otherwise you're prompted):
 #   SHORTENER_BASE   e.g. https://s.example.com   (default http://localhost:PORT)
@@ -36,29 +38,36 @@ command -v systemctl >/dev/null || die "systemd not found (this script targets s
 
 IS_ROOT=0; [ "$(id -u)" -eq 0 ] && IS_ROOT=1
 
-# --- gather config ---------------------------------------------------------
-SHORTENER_PORT=${SHORTENER_PORT:-8779}
+if [ "$IS_ROOT" -eq 1 ]; then
+  UNIT=/etc/systemd/system/tab-share-shortener.service
+else
+  UNIT="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/tab-share-shortener.service"
+fi
+# value of Environment=NAME= from a previous install's unit (empty if none)
+unit_env() { [ -f "$UNIT" ] && sed -n "s/^Environment=$1=//p" "$UNIT" | head -1 || true; }
+
+# --- gather config -------------------------------------------------------
+# precedence: env var you pass  ->  previous install's unit  ->  built-in default
+SHORTENER_PORT=${SHORTENER_PORT:-$(unit_env SHORTENER_PORT)}; SHORTENER_PORT=${SHORTENER_PORT:-8779}
 ask SHORTENER_PORT "Port"
-SHORTENER_BASE=${SHORTENER_BASE:-http://localhost:$SHORTENER_PORT}
+SHORTENER_BASE=${SHORTENER_BASE:-$(unit_env SHORTENER_BASE)}; SHORTENER_BASE=${SHORTENER_BASE:-http://localhost:$SHORTENER_PORT}
 ask SHORTENER_BASE "Public base URL (no trailing slash)"
-SHORTENER_HOSTS=${SHORTENER_HOSTS:-kaikayy.github.io}
+SHORTENER_HOSTS=${SHORTENER_HOSTS:-$(unit_env SHORTENER_HOSTS)}; SHORTENER_HOSTS=${SHORTENER_HOSTS:-kaikayy.github.io}
 ask SHORTENER_HOSTS "Allowed target host(s), comma-separated (your viewer host)"
 
 DEFAULT_BACKEND=file; [ "$NODE_MAJOR" -ge 24 ] && DEFAULT_BACKEND=sqlite
-STORE_BACKEND=${STORE_BACKEND:-$DEFAULT_BACKEND}
+STORE_BACKEND=${STORE_BACKEND:-$(unit_env SHORTENER_STORE_BACKEND)}; STORE_BACKEND=${STORE_BACKEND:-$DEFAULT_BACKEND}
 ask STORE_BACKEND "Storage backend (file | sqlite)"
 [ "$STORE_BACKEND" = sqlite ] && [ "$NODE_MAJOR" -lt 24 ] && die "sqlite backend needs Node 24+ (have $(node -v))."
 
 if [ "$IS_ROOT" -eq 1 ]; then
   APP_DIR=/opt/tab-share-shortener
   DATA_DIR=/var/lib/tab-share-shortener
-  UNIT=/etc/systemd/system/tab-share-shortener.service
   RUN_USER=tabshare
   SYSTEMCTL="systemctl"
 else
   APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/tab-share-shortener/app"
   DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/tab-share-shortener/data"
-  UNIT="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/tab-share-shortener.service"
   RUN_USER="$(id -un)"
   SYSTEMCTL="systemctl --user"
 fi
