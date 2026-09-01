@@ -73,6 +73,8 @@ The ones you'll actually set:
 |---|---|---|
 | `SHORTENER_BASE` | `http://localhost:8779` | public origin, no trailing slash |
 | `SHORTENER_HOSTS` | `kaikayy.github.io` | comma list of allowed target hosts (empty = open mode) |
+| `SHORTENER_HOSTS_FILE` | -- | newline-delimited host file, merged with `SHORTENER_HOSTS`; re-read on `SIGHUP` |
+| `SHORTENER_LOG` | off | `1` or a dir: log redirects (truncated IP) to per-day files |
 | `SHORTENER_PORT` / `SHORTENER_HOST` | `8779` / `127.0.0.1` | bind address |
 | `SHORTENER_STORE` | `data/links.json` | store file path |
 | `SHORTENER_STORE_BACKEND` | infer from path | `file` or `sqlite` (Node 24+) |

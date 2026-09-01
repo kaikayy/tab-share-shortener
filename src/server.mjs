@@ -14,8 +14,9 @@
 
 import http from "node:http";
 import { Buffer } from "node:buffer";
-import { config } from "./config.mjs";
+import { config, reloadAllowedHosts } from "./config.mjs";
 import { openStore } from "./store.mjs";
+import { initAccessLog, logHit, stopAccessLog } from "./accesslog.mjs";
 import { RateLimiter } from "./ratelimit.mjs";
 import { validateTarget } from "./validate.mjs";
 import { generate, normalizeMode, looksLikeCode } from "./codes.mjs";
@@ -24,6 +25,7 @@ import { KEYSPACE_BITS } from "./words.mjs";
 const store = openStore();
 const limiter = new RateLimiter(config.ratePerMinute);
 setInterval(() => limiter.sweep(), 60_000).unref?.();
+initAccessLog();
 
 /* ------------------------------ helpers ------------------------------ */
 
@@ -195,10 +197,11 @@ async function handleShorten(req, res, urlObj) {
   return sendText(res, 200, shortUrl);
 }
 
-function handleRedirect(res, code) {
+function handleRedirect(req, res, code) {
   const entry = store.get(code);
   if (!entry) return sendText(res, 404, "unknown or expired link");
   if (config.countHits) store.bumpHits(code);
+  logHit(code, clientIp(req));
   redirect(res, entry.url);
 }
 
@@ -255,7 +258,7 @@ const server = http.createServer(
 
       if (req.method === "GET") {
         const code = decodeURIComponent(pathname.slice(1));
-        if (looksLikeCode(code)) return handleRedirect(res, code);
+        if (looksLikeCode(code)) return handleRedirect(req, res, code);
         return sendText(res, 404, "not found");
       }
 
@@ -285,6 +288,7 @@ server.on("clientError", (err, socket) => {
 
 function shutdown() {
   try {
+    stopAccessLog();
     store.flushSync();
     store.close();
   } catch (e) {
@@ -295,6 +299,10 @@ function shutdown() {
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+process.on("SIGHUP", () => {
+  const hosts = reloadAllowedHosts();
+  console.log(`SIGHUP: allowlist reloaded (${hosts.length ? hosts.join(", ") : "ANY"})`);
+});
 
 server.listen(config.port, config.host, () => {
   console.log(`tab-share-shortener on http://${config.host}:${config.port}  (public base: ${config.base})`);

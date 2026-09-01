@@ -6,6 +6,7 @@
  */
 
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -31,6 +32,31 @@ function envList(name, fallback) {
     .filter(Boolean);
 }
 
+/** Read a newline-delimited host file (blank lines and `#` comments ignored). */
+function readHostsFile(name) {
+  const p = process.env[name];
+  if (!p) return [];
+  let text;
+  try {
+    text = readFileSync(p, "utf8");
+  } catch (e) {
+    console.warn(`${name}: cannot read ${p} -- ${e.message}`);
+    return [];
+  }
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/#.*/, "").trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/** Merge SHORTENER_HOSTS (comma list) with SHORTENER_HOSTS_FILE (a file). */
+function computeAllowedHosts() {
+  const fromEnv = envList("SHORTENER_HOSTS", null);
+  const fromFile = readHostsFile("SHORTENER_HOSTS_FILE");
+  if (fromEnv == null && fromFile.length === 0) return ["kaikayy.github.io"];
+  return [...new Set([...(fromEnv || []), ...fromFile])];
+}
+
 const PORT = envInt("SHORTENER_PORT", 8779);
 
 export const config = {
@@ -52,8 +78,13 @@ export const config = {
    * host, usually). Exact host[:port] match, case-insensitive. `localhost`
    * and `127.0.0.1` on any port are always allowed so local testing works.
    * An empty list means "allow any https host" -- only do that behind auth.
+   *
+   * From SHORTENER_HOSTS (comma list) plus SHORTENER_HOSTS_FILE (a
+   * newline-delimited file, easier to manage / PR for a shared instance).
+   * If SHORTENER_HOSTS is unset AND no file is given, defaults to the one
+   * Tab Share viewer host.
    */
-  allowedHosts: envList("SHORTENER_HOSTS", ["kaikayy.github.io"]),
+  allowedHosts: computeAllowedHosts(),
 
   /** Largest URL (in bytes) the service will store. 256 KB by default. */
   maxUrlBytes: envInt("SHORTENER_MAX_URL", 256 * 1024),
@@ -89,9 +120,24 @@ export const config = {
   /** Count redirect hits. Cheap, but adds a store write on the read path. */
   countHits: envStr("SHORTENER_COUNT_HITS", "1") !== "0",
 
+  /**
+   * Redirect access log. Unset = off (no per-request logging at all). "1" =
+   * on, into <store dir>/access-logs. A path = on, into that directory.
+   * IPs are truncated to a network prefix before writing (see accesslog.mjs).
+   */
+  logPath: envStr("SHORTENER_LOG", ""),
+  /** Days to keep access-log files. */
+  logDays: envInt("SHORTENER_LOG_DAYS", 30),
+
   /** Random-code length (mode "code"). */
   codeLength: envInt("SHORTENER_CODE_LENGTH", 7),
 };
+
+/** Re-read SHORTENER_HOSTS_FILE and update the allowlist in place (SIGHUP). */
+export function reloadAllowedHosts() {
+  config.allowedHosts = computeAllowedHosts();
+  return config.allowedHosts;
+}
 
 /** True when `host` (which may include :port) is an allowed redirect target. */
 export function hostAllowed(host) {

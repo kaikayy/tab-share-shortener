@@ -99,6 +99,54 @@ place the service can only ever redirect to your own Tab Share viewer, so it's
 not useful to abuse. If you clear it ("open mode"), put auth or an IP allowlist
 in front and expect to handle takedown requests.
 
+### Access log (optional, off by default)
+
+Out of the box the shortener writes **no per-request log** -- the redirect
+endpoint never records who clicked a link.
+
+Set `SHORTENER_LOG=1` (or a directory path) to turn on a minimal log: one JSON
+line per redirect (`{ "t", "code", "ip" }`) in a per-day file under
+`<store dir>/access-logs/`. The IP is **truncated before it is written** --
+IPv4 loses its last octet (`203.0.113.47` -> `203.0.113.0`), IPv6 keeps only
+its first three groups -- so a line identifies a network, not a person. Files
+older than `SHORTENER_LOG_DAYS` (default 30) are deleted automatically.
+
+For the truncated IP to be the visitor's (not your proxy's), also set
+`SHORTENER_TRUST_PROXY=1` and have the proxy pass `X-Forwarded-For`.
+
+---
+
+## Using it with your own viewer
+
+`SHORTENER_HOSTS` and `SHORTENER_HOSTS_FILE` decide which viewer hosts a link
+may point at. To allow a self-hosted viewer, add its host:
+
+```bash
+SHORTENER_HOSTS=my-viewer.example.com node src/server.mjs
+# or several:
+SHORTENER_HOSTS=my-viewer.example.com,kaikayy.github.io node src/server.mjs
+```
+
+For a longer or growing list, keep it in a file (one host per line, `#`
+comments allowed -- see [`deploy/allowed-viewers.example.txt`](deploy/allowed-viewers.example.txt))
+and point `SHORTENER_HOSTS_FILE` at it. Both sources are merged.
+
+```bash
+SHORTENER_HOSTS_FILE=/etc/tab-share-shortener/allowed-viewers.txt node src/server.mjs
+```
+
+`localhost` / `127.0.0.1` (any port) are always allowed for local testing.
+
+### Running a shortener other people can use
+
+If you host an instance for others, keep the list in
+`deploy/allowed-viewers.txt` (git-tracked in your fork) and point
+`SHORTENER_HOSTS_FILE` at it. Self-hosters request an addition with the
+**"Add my viewer host to the allowlist"** issue form; you verify the URL serves
+the real viewer and merge the one-line change. No code deploy and no restart --
+send the process `SIGHUP` and it re-reads `SHORTENER_HOSTS_FILE` in place
+(`systemctl reload` if you add `ExecReload=/bin/kill -HUP $MAINPID` to the unit).
+
 ---
 
 ## Path B -- Cloudflare Worker + KV

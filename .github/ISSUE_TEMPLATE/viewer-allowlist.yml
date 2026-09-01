@@ -1,0 +1,50 @@
+name: Add my viewer host to the allowlist
+description: Request that a self-hosted Tab Share viewer be allowed on a shared instance of this shortener.
+title: "allowlist: <your-viewer-host>"
+labels: ["allowlist-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is only for a **shared** shortener instance whose operator maintains
+        `deploy/allowed-viewers.txt`. If you run **your own** shortener, you do
+        not need this -- just add your host to `SHORTENER_HOSTS` (see
+        [SELF-HOSTING.md](../../SELF-HOSTING.md#using-it-with-your-own-viewer)).
+  - type: input
+    id: host
+    attributes:
+      label: Viewer host
+      description: Just the host (and port if non-standard). No scheme, no path.
+      placeholder: viewer.example.com
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Full viewer URL
+      description: Where the Tab Share viewer is actually served.
+      placeholder: https://viewer.example.com/tab-share/
+    validations:
+      required: true
+  - type: dropdown
+    id: proof
+    attributes:
+      label: Proof you control this host
+      options:
+        - The URL above loads the Tab Share viewer right now (operator can check)
+        - I will add a TXT record / .well-known file if asked
+        - Other (explain below)
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Optional. Who you are, expected volume, etc.
+  - type: checkboxes
+    id: agree
+    attributes:
+      label: Confirm
+      options:
+        - label: This viewer only serves the unmodified Tab Share viewer (or a fork under AGPL-3.0), not an open redirect or unrelated content.
+          required: true

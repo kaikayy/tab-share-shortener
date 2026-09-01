@@ -7,9 +7,11 @@
  */
 
 import assert from "node:assert/strict";
-import { rmSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PORT = 8791;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -32,6 +34,30 @@ const test = (name, fn) => tests.push([name, fn]);
 const { generate, looksLikeCode, normalizeMode } = await import("../src/codes.mjs");
 const { RateLimiter } = await import("../src/ratelimit.mjs");
 const { validateTarget } = await import("../src/validate.mjs");
+const { truncateIp } = await import("../src/accesslog.mjs");
+
+test("SHORTENER_HOSTS_FILE merges with SHORTENER_HOSTS", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const hf = path.join(tmpdir(), `tss-hosts-${process.pid}.txt`);
+  writeFileSync(hf, "# a comment\nfriend.example\n\n  Other.Example  \n");
+  const out = execFileSync(
+    process.execPath,
+    ["-e", "import('./src/config.mjs').then(m => console.log(JSON.stringify(m.config.allowedHosts)))"],
+    { cwd: root, env: { ...process.env, SHORTENER_HOSTS: "me.example", SHORTENER_HOSTS_FILE: hf } },
+  );
+  const hosts = JSON.parse(out.toString().trim());
+  assert.deepEqual(hosts.sort(), ["friend.example", "me.example", "other.example"]);
+  rmSync(hf, { force: true });
+});
+
+test("truncateIp drops host bits (privacy)", () => {
+  assert.equal(truncateIp("203.0.113.47"), "203.0.113.0");
+  assert.equal(truncateIp("::ffff:203.0.113.47"), "203.0.113.0"); // v4-mapped
+  assert.equal(truncateIp("2001:db8:abcd:1234::1"), "2001:db8:abcd::");
+  assert.equal(truncateIp("2001:db8::1"), "2001:db8:0::");
+  assert.equal(truncateIp(""), "");
+  assert.equal(truncateIp("garbage"), "");
+});
 
 test("code mode: 7 unambiguous chars", () => {
   const c = generate("code", () => false);

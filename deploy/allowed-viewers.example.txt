@@ -1,0 +1,16 @@
+# allowed-viewers.txt -- one Tab Share viewer host per line.
+#
+# Point SHORTENER_HOSTS_FILE at a copy of this file. Lines are merged with
+# whatever is in SHORTENER_HOSTS. Blank lines and #-comments are ignored.
+# Host only -- no scheme, no path. Add a port only if it is non-standard.
+#
+#   SHORTENER_HOSTS_FILE=/etc/tab-share-shortener/allowed-viewers.txt
+#
+# localhost and 127.0.0.1 are always allowed (any port) for local testing;
+# you do not need to list them.
+
+kaikayy.github.io
+
+# --- add self-hosted viewers below (one per line) ---
+# viewer.example.com
+# tabs.someones-site.net

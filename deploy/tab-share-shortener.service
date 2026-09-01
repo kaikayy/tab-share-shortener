@@ -18,6 +18,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=/PATH/TO/tab-share-shortener
 ExecStart=/usr/bin/node src/server.mjs
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=2
 
