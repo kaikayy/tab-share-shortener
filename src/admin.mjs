@@ -13,6 +13,7 @@
 
 import { readFileSync, statSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { Buffer } from "node:buffer";
 import { fileURLToPath } from "node:url";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { config, writeAllowedHosts } from "./config.mjs";
