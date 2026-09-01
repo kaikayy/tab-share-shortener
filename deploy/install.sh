@@ -14,8 +14,11 @@
 # Env you can preset (otherwise you're prompted):
 #   SHORTENER_BASE   e.g. https://s.example.com   (default http://localhost:PORT)
 #   SHORTENER_HOSTS  e.g. you.github.io           (default kaikayy.github.io)
+#                    -- seeds the allowlist file on first install; after that the
+#                       admin panel owns the allowlist (SHORTENER_HOSTS_FILE)
 #   SHORTENER_PORT   default 8779
 #   STORE_BACKEND    file | sqlite                (default sqlite if Node >= 24)
+#   SHORTENER_ADMIN_TOKEN  admin panel token      (auto-generated if unset)
 #   NONINTERACTIVE=1 skip all prompts, take defaults / env
 
 set -euo pipefail
@@ -53,7 +56,16 @@ ask SHORTENER_PORT "Port"
 SHORTENER_BASE=${SHORTENER_BASE:-$(unit_env SHORTENER_BASE)}; SHORTENER_BASE=${SHORTENER_BASE:-http://localhost:$SHORTENER_PORT}
 ask SHORTENER_BASE "Public base URL (no trailing slash)"
 SHORTENER_HOSTS=${SHORTENER_HOSTS:-$(unit_env SHORTENER_HOSTS)}; SHORTENER_HOSTS=${SHORTENER_HOSTS:-kaikayy.github.io}
-ask SHORTENER_HOSTS "Allowed target host(s), comma-separated (your viewer host)"
+ask SHORTENER_HOSTS "Allowed target host(s), comma-separated (seeds the allowlist file)"
+
+# Admin panel token: keep a previous one, else generate. Unset it in the unit to
+# disable the panel entirely.
+ADMIN_TOKEN=${SHORTENER_ADMIN_TOKEN:-$(unit_env SHORTENER_ADMIN_TOKEN)}
+NEW_TOKEN=0
+if [ -z "$ADMIN_TOKEN" ]; then
+  ADMIN_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 44 || true)
+  NEW_TOKEN=1
+fi
 
 DEFAULT_BACKEND=file; [ "$NODE_MAJOR" -ge 24 ] && DEFAULT_BACKEND=sqlite
 STORE_BACKEND=${STORE_BACKEND:-$(unit_env SHORTENER_STORE_BACKEND)}; STORE_BACKEND=${STORE_BACKEND:-$DEFAULT_BACKEND}
@@ -74,13 +86,20 @@ fi
 STORE_EXT=json; [ "$STORE_BACKEND" = sqlite ] && STORE_EXT=sqlite
 STORE_PATH="$DATA_DIR/links.$STORE_EXT"
 
+# Writable allowlist file -- the admin panel rewrites this; seeded from
+# SHORTENER_HOSTS on first install only.
+HOSTS_FILE=${SHORTENER_HOSTS_FILE:-$(unit_env SHORTENER_HOSTS_FILE)}
+HOSTS_FILE=${HOSTS_FILE:-$DATA_DIR/allowed-hosts.txt}
+
 echo
 say "install dir : $APP_DIR"
 say "data dir    : $DATA_DIR"
 say "unit        : $UNIT"
 say "runs as     : $RUN_USER"
-say "base / hosts: $SHORTENER_BASE  /  $SHORTENER_HOSTS"
+say "base        : $SHORTENER_BASE"
+say "allowlist   : $HOSTS_FILE  (seed: $SHORTENER_HOSTS)"
 say "backend     : $STORE_BACKEND ($STORE_PATH)"
+say "admin panel : $SHORTENER_BASE/admin  ($([ "$NEW_TOKEN" = 1 ] && echo 'new token generated' || echo 'existing token kept'))"
 echo
 if [ "${NONINTERACTIVE:-}" != 1 ]; then read -r -p "Proceed? [y/N] " ok; [ "${ok:-}" = y ] || exit 1; fi
 
@@ -90,8 +109,20 @@ if [ "$IS_ROOT" -eq 1 ] && ! id "$RUN_USER" >/dev/null 2>&1; then
 fi
 mkdir -p "$APP_DIR" "$DATA_DIR"
 cp -r "$SRC_DIR/src" "$SRC_DIR/package.json" "$SRC_DIR/LICENSE" "$APP_DIR/"
+
+# Seed the allowlist file once; after this the admin panel owns it.
+if [ ! -f "$HOSTS_FILE" ]; then
+  mkdir -p "$(dirname "$HOSTS_FILE")"
+  {
+    echo "# Tab Share shortener -- allowed redirect-target hosts (one per line)."
+    echo "# Managed by the admin panel; edits here are picked up on the next reload."
+    printf '%s\n' "$SHORTENER_HOSTS" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^[[:space:]]*$' || true
+  } > "$HOSTS_FILE"
+fi
+
 if [ "$IS_ROOT" -eq 1 ]; then
   chown -R "$RUN_USER:$RUN_USER" "$APP_DIR" "$DATA_DIR"
+  [ -f "$HOSTS_FILE" ] && chown "$RUN_USER:$RUN_USER" "$HOSTS_FILE"
   chmod 750 "$DATA_DIR"
 fi
 
@@ -114,11 +145,11 @@ mkdir -p "$(dirname "$UNIT")"
   echo "Environment=SHORTENER_HOST=127.0.0.1"
   echo "Environment=SHORTENER_PORT=$SHORTENER_PORT"
   echo "Environment=SHORTENER_BASE=$SHORTENER_BASE"
-  echo "Environment=SHORTENER_HOSTS=$SHORTENER_HOSTS"
+  echo "Environment=SHORTENER_HOSTS_FILE=$HOSTS_FILE"
   echo "Environment=SHORTENER_STORE=$STORE_PATH"
   echo "Environment=SHORTENER_STORE_BACKEND=$STORE_BACKEND"
   echo "Environment=SHORTENER_TRUST_PROXY=1"
-  [ -n "${SHORTENER_HOSTS_FILE:-}" ] && echo "Environment=SHORTENER_HOSTS_FILE=$SHORTENER_HOSTS_FILE"
+  [ -n "$ADMIN_TOKEN" ] && echo "Environment=SHORTENER_ADMIN_TOKEN=$ADMIN_TOKEN"
   [ -n "${SHORTENER_LOG:-}" ] && echo "Environment=SHORTENER_LOG=$SHORTENER_LOG"
   [ -n "${SHORTENER_LOG_DAYS:-}" ] && echo "Environment=SHORTENER_LOG_DAYS=$SHORTENER_LOG_DAYS"
   echo "NoNewPrivileges=true"
@@ -126,12 +157,16 @@ mkdir -p "$(dirname "$UNIT")"
   if [ "$IS_ROOT" -eq 1 ]; then
     echo "ProtectSystem=strict"
     echo "ProtectHome=true"
-    echo "ReadWritePaths=$DATA_DIR${SHORTENER_LOG:+ $SHORTENER_LOG}"
+    RWP="$DATA_DIR"
+    case "$HOSTS_FILE" in "$DATA_DIR"/*) ;; *) RWP="$RWP $(dirname "$HOSTS_FILE")" ;; esac
+    echo "ReadWritePaths=$RWP${SHORTENER_LOG:+ $SHORTENER_LOG}"
   fi
   echo
   echo "[Install]"
   [ "$IS_ROOT" -eq 1 ] && echo "WantedBy=multi-user.target" || echo "WantedBy=default.target"
 } > "$UNIT"
+# the unit holds the admin token -- keep it off world-read
+chmod "$([ "$IS_ROOT" -eq 1 ] && echo 640 || echo 600)" "$UNIT" 2>/dev/null || true
 
 # --- start --------------------------------------------------------------
 $SYSTEMCTL daemon-reload
@@ -151,3 +186,12 @@ fi
 echo
 say "Put a TLS-terminating reverse proxy in front for $SHORTENER_BASE (see SELF-HOSTING.md)."
 say "Extension endpoint: $SHORTENER_BASE/new?url=   (or ?mode=words&url= for word slugs)"
+if [ -n "$ADMIN_TOKEN" ]; then
+  if [ "$NEW_TOKEN" = 1 ] && [ "${NONINTERACTIVE:-}" != 1 ]; then
+    echo
+    say "Admin panel: $SHORTENER_BASE/admin?token=$ADMIN_TOKEN"
+    say "(shown once -- it is stored in $UNIT as SHORTENER_ADMIN_TOKEN)"
+  else
+    say "Admin panel: $SHORTENER_BASE/admin   (token in $UNIT)"
+  fi
+fi

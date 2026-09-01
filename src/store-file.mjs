@@ -9,15 +9,16 @@
  * Interface shared with store-sqlite.mjs:
  *   has(code) get(code) put(code,{url,mode,ttlDays}) delete(code)
  *   bumpHits(code) findByUrl(url) stats() flushSync() close()
+ *   revoke(code) unrevoke(code) list()
  */
 
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config.mjs";
 
-const SCHEMA = 1;
+const SCHEMA = 2; // 2: added `revoked` and `lastHit`
 
-/** @typedef {{ url: string, mode: string, created: number, expires: number, hits: number }} Entry */
+/** @typedef {{ url: string, mode: string, created: number, expires: number, hits: number, lastHit: number, revoked: number }} Entry */
 
 export class FileStore {
   /** @param {string} [file] */
@@ -66,9 +67,12 @@ export class FileStore {
         created: e.created || now,
         expires: e.expires || 0,
         hits: e.hits || 0,
+        lastHit: e.lastHit || 0,
+        revoked: e.revoked || 0,
       };
       this.map.set(code, entry);
-      this._index(code, entry);
+      // a revoked link keeps its slug reserved but drops out of dedup
+      if (!entry.revoked) this._index(code, entry);
     }
   }
 
@@ -97,15 +101,16 @@ export class FileStore {
     this.flushSync();
   }
 
-  /** @param {string} code */
+  /** @param {string} code -- true while the slug is in use (revoked included). */
   has(code) {
     return this.map.has(code);
   }
 
-  /** @param {string} code @returns {Entry | null} -- null if missing or expired */
+  /** @param {string} code @returns {Entry | null} -- null if missing, expired or revoked */
   get(code) {
     const e = this.map.get(code);
     if (!e) return null;
+    if (e.revoked) return null;
     if (e.expires && e.expires < Date.now()) {
       this.map.delete(code);
       this._deindex(code, e);
@@ -119,7 +124,7 @@ export class FileStore {
   findByUrl(url) {
     const code = this.byUrl.get(url);
     if (!code) return null;
-    const entry = this.get(code); // handles expiry
+    const entry = this.get(code); // handles expiry + revoked
     return entry ? { code, entry } : null;
   }
 
@@ -136,6 +141,8 @@ export class FileStore {
       created: Date.now(),
       expires: days > 0 ? Date.now() + days * 86400_000 : 0,
       hits: 0,
+      lastHit: 0,
+      revoked: 0,
     };
     this.map.set(code, entry);
     this._index(code, entry);
@@ -143,7 +150,7 @@ export class FileStore {
     return entry;
   }
 
-  /** @param {string} code */
+  /** @param {string} code -- permanent removal (frees the slug). */
   delete(code) {
     const e = this.map.get(code);
     const had = this.map.delete(code);
@@ -154,17 +161,50 @@ export class FileStore {
     return had;
   }
 
+  /** @param {string} code -- soft-delete: 404s on redirect, row kept for the record. */
+  revoke(code) {
+    const e = this.map.get(code);
+    if (!e || e.revoked) return false;
+    e.revoked = Date.now();
+    this._deindex(code, e);
+    this._scheduleFlush();
+    return true;
+  }
+
+  /** @param {string} code -- undo revoke(). */
+  unrevoke(code) {
+    const e = this.map.get(code);
+    if (!e || !e.revoked) return false;
+    e.revoked = 0;
+    this._index(code, e);
+    this._scheduleFlush();
+    return true;
+  }
+
+  /** @returns {Array<Entry & { code: string }>} every row, newest first. */
+  list() {
+    const out = [];
+    for (const [code, e] of this.map) out.push({ code, ...e });
+    out.sort((a, b) => b.created - a.created);
+    return out;
+  }
+
   /** @param {string} code */
   bumpHits(code) {
     const e = this.map.get(code);
     if (!e) return;
     e.hits++;
+    e.lastHit = Date.now();
     this._scheduleFlush();
   }
 
   stats() {
     let expiring = 0;
-    for (const e of this.map.values()) if (e.expires) expiring++;
-    return { total: this.map.size, expiring, backend: "file" };
+    let revoked = 0;
+    for (const e of this.map.values()) {
+      if (e.revoked) revoked++;
+      else if (e.expires) expiring++;
+    }
+    return { total: this.map.size, expiring, revoked, backend: "file" };
   }
 }

@@ -110,12 +110,17 @@ last 30; add it to cron:
 For SQLite: `sqlite3 links.sqlite ".backup 'backup.sqlite'"` or just copy the
 file (WAL makes a plain `cp` safe enough).
 
-**On the roadmap:** the `sqlite` backend needs Node 24, so an older box is stuck
-on `file`. A **MySQL / MariaDB** backend is planned so the shortener can
-run on shared PHP hosting (KeyHelp, cPanel, ...) that has a database but no way
-to run a persistent Node process. Same `openStore()` surface: `get / has / put
-/ delete / bumpHits / findByUrl / stats / flushSync / close` in
-[`src/store-file.mjs`](src/store-file.mjs), wired into `src/store.mjs`.
+**On the roadmap -- a MySQL / MariaDB backend.** The `sqlite` backend needs
+Node 24, so an older box (like a KeyHelp/cPanel host on Node 20) is stuck on
+`file`. Those hosts almost always *do* offer a MySQL/MariaDB database, so a
+`mysql` backend is the planned durable option there. It would be the project's
+first runtime dependency (a driver such as `mysql2` -- Node has no built-in
+MySQL client), kept optional and loaded only when selected, the same way
+`node:sqlite` is today. Same `openStore()` surface: `has / get / put / delete /
+bumpHits / findByUrl / revoke / unrevoke / list / stats / flushSync / close` in
+[`src/store-file.mjs`](src/store-file.mjs), wired into `src/store.mjs`. The
+analytics store ([`src/analytics.mjs`](src/analytics.mjs)) is deliberately flat
+JSON so it can move to the same database in the same step.
 
 Identical links are **de-duplicated**: shortening the same URL twice returns the
 same code (the response carries `"reused": true`).
@@ -142,6 +147,34 @@ older than `SHORTENER_LOG_DAYS` (default 30) are deleted automatically.
 For the truncated IP to be the visitor's (not your proxy's), also set
 `SHORTENER_TRUST_PROXY=1` and have the proxy pass `X-Forwarded-For`.
 
+### Admin panel
+
+`/admin` gives you a link table (with **revoke** -- a soft delete that 404s the
+link but keeps the row), manual/vanity link creation, an editor for the host
+allowlist, and redirect analytics (daily counts, busiest links, referrer
+*hosts*, why links were rejected). It is one page, no build step, no external
+requests.
+
+It is **off unless `SHORTENER_ADMIN_TOKEN` is set** -- with the token unset the
+whole `/admin` tree returns 404 and is not discoverable. The installer
+generates a token on first run and stores it in the systemd unit; to see it:
+
+```bash
+systemctl --user show tab-share-shortener -p Environment | tr ' ' '\n' | grep ADMIN
+```
+
+Sign in by visiting `https://your-shortener/admin?token=<TOKEN>` once (it sets
+an `HttpOnly; Secure; SameSite=Strict` cookie), or send
+`Authorization: Bearer <TOKEN>` for scripts. The token is compared in constant
+time. Serve `/admin` over HTTPS only.
+
+Analytics are aggregate-only -- no IPs, no per-visitor rows, referrer host but
+never the path -- and live in `<store dir>/analytics.json`
+(`SHORTENER_ANALYTICS=0` disables them, `SHORTENER_ANALYTICS_DAYS` sets the
+retention, default 365). The allowlist editor needs `SHORTENER_HOSTS_FILE` set
+(the installer points it at `<data dir>/allowed-hosts.txt`); without it the
+allowlist view is read-only.
+
 ---
 
 ## Using it with your own viewer
@@ -164,6 +197,11 @@ SHORTENER_HOSTS_FILE=/etc/tab-share-shortener/allowed-viewers.txt node src/serve
 ```
 
 `localhost` / `127.0.0.1` (any port) are always allowed for local testing.
+
+The **installer** seeds `<data dir>/allowed-hosts.txt` from `SHORTENER_HOSTS` on
+first run and then points `SHORTENER_HOSTS_FILE` at it -- after that, manage the
+list from the [admin panel](#admin-panel) (or edit the file; the server reloads
+it on `SIGHUP` and whenever the panel saves).
 
 ### Running a shortener other people can use
 

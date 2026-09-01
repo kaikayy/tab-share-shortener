@@ -11,6 +11,10 @@ can run to several kilobytes.
   - `words` -- readable, Twitch-clip style: `s.example.com/swift-amber-otter`
 - **No account, no tracking beyond an optional hit counter.** Identical links
   are de-duplicated -- shortening the same URL twice returns the same code.
+- **Optional admin panel** at `/admin` (token-gated, off by default): link
+  table with revoke, manual/vanity links, host-allowlist editor, and
+  aggregate-only analytics -- no IPs, no per-visitor data. See
+  [SELF-HOSTING.md](SELF-HOSTING.md#admin-panel).
 - **Not an open redirector.** It only shortens links pointing at a host on its
   allowlist (your Tab Share viewer), which is what keeps it off the phishing radar.
 - **Zero dependencies.** Plain Node 20+ (24+ for the SQLite backend). Storage is
@@ -22,7 +26,7 @@ Licensed **AGPL-3.0-only** (it's a network service -- same terms as Tab Share).
 ## Run it locally
 
 ```bash
-npm test          # 27 checks (Node server + Worker), no network
+npm test          # store + Node server + Worker checks, no network
 npm run dev       # http://localhost:8779, accepts localhost:8777 + kaikayy.github.io targets
 npm run gen:worker  # regenerate deploy/worker-words.js after editing src/words.mjs
 ```
@@ -58,6 +62,7 @@ URL as plain text.
 | `GET /new?url=<enc>&mode=` | compat shim | `200` `text/plain` short URL |
 | `GET /:code` | | `302` to the target (HTML meta-refresh if the target is very long) |
 | `GET /api/health` | | `200 { ok, store, allowedHosts, ... }` |
+| `/admin`, `/admin/api/*` | `Bearer` / cookie token | panel + JSON API; `404` when `SHORTENER_ADMIN_TOKEN` is unset |
 
 See [`CONTRACT.md`](CONTRACT.md) for the exact rules a response/redirect must
 follow, and [`SELF-HOSTING.md`](SELF-HOSTING.md) to deploy.
@@ -79,6 +84,8 @@ The ones you'll actually set:
 | `SHORTENER_TTL_DAYS` | `0` | default link lifetime (`0` = forever) |
 | `SHORTENER_RATE` | `30` | creates per IP per minute (`0` = off) |
 | `SHORTENER_TRUST_PROXY` | off | set `1` behind a reverse proxy to read `X-Forwarded-For` |
+| `SHORTENER_ADMIN_TOKEN` | off | set a long random string to enable `/admin`; unset = the tree 404s |
+| `SHORTENER_ANALYTICS` | `1` | `0` disables redirect analytics; `SHORTENER_ANALYTICS_DAYS` sets retention (365) |
 
 ## Support
 

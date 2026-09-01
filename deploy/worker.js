@@ -5,6 +5,8 @@
  *   - storage is a KV namespace bound as `LINKS` (value = the long URL,
  *     1-year TTL); no hit counter, no rate limiter (use Cloudflare's).
  *   - config comes from Worker vars, not process.env.
+ *   - no `/admin` panel and no analytics -- those are Node-server only
+ *     (use Cloudflare's own dashboard/analytics for a Worker deployment).
  *
  * Deploy: see ../SELF-HOSTING.md. Wordlists live in ./worker-words.js and are
  * generated from ../src/words.mjs by `npm run gen:worker` -- keep them in sync.

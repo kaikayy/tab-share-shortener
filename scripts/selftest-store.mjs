@@ -73,6 +73,38 @@ function suite(label, Ctor, ext) {
     s.close();
   });
 
+  test(`[${label}] revoke: 404s but keeps the row and the slug`, () => {
+    const s = fresh();
+    const url = "https://kaikayy.github.io/r#1";
+    s.put("rev", { url, mode: "code" });
+    s.bumpHits("rev");
+    assert.equal(s.revoke("rev"), true);
+    assert.equal(s.revoke("rev"), false); // idempotent
+    assert.equal(s.get("rev"), null); // redirect would 404
+    assert.equal(s.has("rev"), true); // slug still reserved
+    assert.equal(s.findByUrl(url), null); // drops out of dedup
+    const row = s.list().find((e) => e.code === "rev");
+    assert.ok(row && row.revoked > 0);
+    assert.equal(row.hits, 1);
+    assert.equal(s.stats().revoked, 1);
+    assert.equal(s.unrevoke("rev"), true);
+    assert.equal(s.get("rev").url, url);
+    assert.ok(s.findByUrl(url));
+    s.close();
+  });
+
+  test(`[${label}] list + lastHit`, () => {
+    const s = fresh();
+    s.put("a", { url: "https://kaikayy.github.io/a#1", mode: "code" });
+    s.put("b", { url: "https://kaikayy.github.io/b#1", mode: "words" });
+    assert.equal(s.get("a").lastHit, 0);
+    s.bumpHits("a");
+    assert.ok(s.get("a").lastHit > 0);
+    const codes = s.list().map((e) => e.code).sort();
+    assert.deepEqual(codes, ["a", "b"]);
+    s.close();
+  });
+
   test(`[${label}] survives reopen`, () => {
     const p = path.join(tmpdir(), `tss-store-${label}-${process.pid}-reopen.${ext}`);
     paths.push(p);

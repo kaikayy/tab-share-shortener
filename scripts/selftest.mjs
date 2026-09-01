@@ -16,12 +16,20 @@ import { fileURLToPath } from "node:url";
 const PORT = 8791;
 const BASE = `http://127.0.0.1:${PORT}`;
 const STORE = path.join(tmpdir(), `tss-selftest-${process.pid}.json`);
+const HOSTS_FILE = path.join(tmpdir(), `tss-selftest-hosts-${process.pid}.txt`);
+const ANALYTICS = path.join(tmpdir(), `tss-selftest-an-${process.pid}.json`);
+const ADMIN_TOKEN = "selftest-admin-token";
 const VIEWER = "https://kaikayy.github.io/multi-link-share/";
+
+writeFileSync(HOSTS_FILE, "kaikayy.github.io\n");
 
 process.env.SHORTENER_PORT = String(PORT);
 process.env.SHORTENER_BASE = BASE;
 process.env.SHORTENER_HOSTS = "kaikayy.github.io";
+process.env.SHORTENER_HOSTS_FILE = HOSTS_FILE;
 process.env.SHORTENER_STORE = STORE;
+process.env.SHORTENER_ANALYTICS_STORE = ANALYTICS;
+process.env.SHORTENER_ADMIN_TOKEN = ADMIN_TOKEN;
 process.env.SHORTENER_RATE = "0"; // disable limiter for the round-trip
 process.env.SHORTENER_META_REFRESH_OVER = "7000";
 
@@ -245,6 +253,87 @@ test("store persists to disk", async () => {
   assert.equal(disk.links[code].url, target);
 });
 
+/* --------------------------- admin panel --------------------------- */
+
+const admin = (method, pathname, opts = {}) =>
+  api(method, pathname, { ...opts, headers: { authorization: `Bearer ${ADMIN_TOKEN}`, ...opts.headers } });
+
+test("admin: the tree 404s without a valid token", async () => {
+  assert.equal((await api("GET", "/admin")).status, 404);
+  assert.equal((await api("GET", "/admin/api/overview")).status, 404);
+  assert.equal((await api("GET", "/admin", { headers: { authorization: "Bearer wrong" } })).status, 404);
+});
+
+test("admin: token unlocks the dashboard + overview", async () => {
+  const page = await admin("GET", "/admin");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  const ov = await admin("GET", "/admin/api/overview");
+  assert.equal(ov.status, 200);
+  assert.equal(JSON.parse(ov.text).ops.backend, "file");
+});
+
+test("admin: ?token= sets an HttpOnly cookie and redirects", async () => {
+  const r = await api("GET", `/admin?token=${ADMIN_TOKEN}`);
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get("location"), "/admin");
+  assert.match(r.headers.get("set-cookie"), /tss_admin=.*HttpOnly/i);
+});
+
+test("admin: create then revoke -> the link 404s but the row stays", async () => {
+  const mk = await admin("POST", "/admin/api/links", {
+    json: { url: `${VIEWER}#admin_made`, slug: "adm-demo" },
+  });
+  assert.equal(mk.status, 201);
+  assert.equal((await api("GET", "/adm-demo")).status, 302);
+
+  const rev = await admin("POST", "/admin/api/links/adm-demo/revoke");
+  assert.equal(JSON.parse(rev.text).ok, true);
+  assert.equal((await api("GET", "/adm-demo")).status, 404);
+
+  const list = JSON.parse((await admin("GET", "/admin/api/links?q=adm-demo")).text);
+  assert.ok(list.links.find((l) => l.code === "adm-demo" && l.revoked > 0));
+
+  assert.equal(JSON.parse((await admin("POST", "/admin/api/links/adm-demo/unrevoke")).text).ok, true);
+  assert.equal((await api("GET", "/adm-demo")).status, 302);
+});
+
+test("admin: editing the host allowlist takes effect immediately", async () => {
+  const before = await api("POST", "/api/shorten", { json: { url: "https://added.example.io/#x" } });
+  assert.equal(before.status, 403);
+
+  const put = await admin("PUT", "/admin/api/hosts", {
+    json: { hosts: ["kaikayy.github.io", "added.example.io"] },
+  });
+  assert.equal(put.status, 200);
+
+  const after = await api("POST", "/api/shorten", { json: { url: "https://added.example.io/#x" } });
+  assert.equal(after.status, 201);
+
+  // put it back so later assertions about the allowlist still hold
+  await admin("PUT", "/admin/api/hosts", { json: { hosts: ["kaikayy.github.io"] } });
+});
+
+test("admin: rejects a malformed host", async () => {
+  const r = await admin("PUT", "/admin/api/hosts", { json: { hosts: ["ok.io", "not a host"] } });
+  assert.equal(r.status, 400);
+});
+
+test("admin: analytics count redirects, creates and rejects", async () => {
+  await api("POST", "/api/shorten", { json: { url: "https://blocked.example/#x" } }); // a reject
+  const code = JSON.parse(
+    (await api("POST", "/api/shorten", { json: { url: `${VIEWER}#stats_probe` } })).text,
+  ).code;
+  await api("GET", `/${code}`, { headers: { referer: "https://ref.example/page" } });
+
+  const s = JSON.parse((await admin("GET", "/admin/api/stats?range=7")).text);
+  assert.ok(s.summary.totals.hits >= 1);
+  assert.ok(s.summary.totals.creates >= 1);
+  assert.ok(s.summary.totals.rejects >= 1);
+  assert.ok(s.referrers.find((r) => r.host === "ref.example"));
+  assert.ok(s.rejects.find((r) => r.reason === "host_not_allowed"));
+});
+
 /* ----------------------------- run ----------------------------- */
 
 let failed = 0;
@@ -260,7 +349,9 @@ for (const [name, fn] of tests) {
 }
 
 try { server.close(); } catch {}
-try { rmSync(STORE, { force: true }); rmSync(`${STORE}.tmp`, { force: true }); } catch {}
+for (const f of [STORE, `${STORE}.tmp`, HOSTS_FILE, `${HOSTS_FILE}.tmp`, ANALYTICS, `${ANALYTICS}.tmp`]) {
+  try { rmSync(f, { force: true }); } catch {}
+}
 
 console.log(`\n${passed}/${tests.length} passed`);
 process.exit(failed ? 1 : 0);

@@ -17,6 +17,8 @@ import { Buffer } from "node:buffer";
 import { config, reloadAllowedHosts } from "./config.mjs";
 import { openStore } from "./store.mjs";
 import { initAccessLog, logHit, stopAccessLog } from "./accesslog.mjs";
+import { handleAdmin } from "./admin.mjs";
+import * as analytics from "./analytics.mjs";
 import { RateLimiter } from "./ratelimit.mjs";
 import { validateTarget } from "./validate.mjs";
 import { generate, normalizeMode, looksLikeCode } from "./codes.mjs";
@@ -26,6 +28,7 @@ const store = openStore();
 const limiter = new RateLimiter(config.ratePerMinute);
 setInterval(() => limiter.sweep(), 60_000).unref?.();
 initAccessLog();
+analytics.initAnalytics();
 
 /* ------------------------------ helpers ------------------------------ */
 
@@ -156,6 +159,13 @@ async function handleShorten(req, res, urlObj) {
 
   const check = validateTarget(inputUrl);
   if (!check.ok) {
+    let rejHost = "";
+    try {
+      rejHost = new URL(inputUrl).host;
+    } catch {
+      /* not a URL */
+    }
+    analytics.recordReject(check.reason, rejHost);
     const payload = { error: check.error };
     return req.method === "POST"
       ? sendJson(res, check.status, payload)
@@ -180,6 +190,7 @@ async function handleShorten(req, res, urlObj) {
       return sendJson(res, 503, { error: e.message });
     }
     entry = store.put(code, { url: check.url, mode, ttlDays });
+    analytics.recordCreate(code, entry.mode);
   }
 
   const shortUrl = `${config.base}/${code}`;
@@ -204,6 +215,7 @@ function handleRedirect(req, res, code) {
   if (req.method !== "HEAD") {
     if (config.countHits) store.bumpHits(code);
     logHit(code, clientIp(req));
+    analytics.recordHit(code, req.headers.referer || req.headers.referrer);
   }
   redirect(res, entry.url);
 }
@@ -239,6 +251,12 @@ const server = http.createServer(
     const method = req.method === "HEAD" ? "GET" : req.method;
 
     try {
+      // /admin* is owned by the admin module (404s unless a valid token is
+      // presented -- so it is not even discoverable when disabled).
+      if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+        if (await handleAdmin(req, res, urlObj, { store })) return;
+      }
+
       if (method === "OPTIONS") return send(res, 204, {}, "");
 
       if (method === "GET" && pathname === "/api/health") {
@@ -300,6 +318,8 @@ server.on("clientError", (err, socket) => {
 function shutdown() {
   try {
     stopAccessLog();
+    analytics.stopAnalytics();
+    analytics.flushSync();
     store.flushSync();
     store.close();
   } catch (e) {

@@ -7,7 +7,11 @@
  * If unset, a store path ending in .db / .sqlite / .sqlite3 implies sqlite,
  * anything else implies file.
  *
- * Both backends implement the same surface -- see store-file.mjs.
+ * Both backends implement the same surface:
+ *   has(code) get(code) put(code,{url,mode,ttlDays}) delete(code)
+ *   bumpHits(code) findByUrl(url) revoke(code) unrevoke(code) list()
+ *   stats() flushSync() close()
+ * -- see store-file.mjs for the contract.
  */
 
 import { createRequire } from "node:module";

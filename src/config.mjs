@@ -6,7 +6,7 @@
  */
 
 import path from "node:path";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -58,6 +58,8 @@ function computeAllowedHosts() {
 }
 
 const PORT = envInt("SHORTENER_PORT", 8779);
+const STORE_PATH = envStr("SHORTENER_STORE", path.join(root, "data", "links.json"));
+const DATA_DIR = path.dirname(STORE_PATH);
 
 export const config = {
   root,
@@ -105,7 +107,17 @@ export const config = {
   ratePerMinute: envInt("SHORTENER_RATE", 30),
 
   /** Path to the link store file. */
-  storePath: envStr("SHORTENER_STORE", path.join(root, "data", "links.json")),
+  storePath: STORE_PATH,
+
+  /** Directory the store lives in -- also where analytics / logs default to. */
+  dataDir: DATA_DIR,
+
+  /**
+   * Path to the writable host-allowlist file (SHORTENER_HOSTS_FILE). When set,
+   * the admin panel can edit the allowlist -- it rewrites this file and the
+   * server reloads it. Unset = allowlist is env-only (admin edit disabled).
+   */
+  hostsFile: envStr("SHORTENER_HOSTS_FILE", ""),
 
   /**
    * Storage backend: "file" (JSON, default for local) or "sqlite" (node:sqlite,
@@ -131,12 +143,65 @@ export const config = {
 
   /** Random-code length (mode "code"). */
   codeLength: envInt("SHORTENER_CODE_LENGTH", 7),
+
+  /**
+   * Admin panel token (SHORTENER_ADMIN_TOKEN). Unset = the whole /admin tree
+   * 404s and is not discoverable. Set it to a long random string; visit
+   * /admin?token=<it> once to get a cookie, or send `Authorization: Bearer`.
+   */
+  adminToken: envStr("SHORTENER_ADMIN_TOKEN", ""),
+
+  /** Redirect analytics (daily counts, referrers, rejects). "0" turns it off. */
+  analyticsEnabled: envStr("SHORTENER_ANALYTICS", "1") !== "0",
+  /** Where the analytics JSON lives. Default: <data dir>/analytics.json */
+  analyticsPath: envStr("SHORTENER_ANALYTICS_STORE", path.join(DATA_DIR, "analytics.json")),
+  /** Days of per-day analytics buckets to keep. */
+  analyticsRetentionDays: envInt("SHORTENER_ANALYTICS_DAYS", 365),
 };
 
 /** Re-read SHORTENER_HOSTS_FILE and update the allowlist in place (SIGHUP). */
 export function reloadAllowedHosts() {
   config.allowedHosts = computeAllowedHosts();
   return config.allowedHosts;
+}
+
+/** A syntactically valid redirect-target host, optionally with :port. */
+export function isValidHost(h) {
+  return /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*(:\d{1,5})?$/i.test(
+    String(h || "").trim(),
+  );
+}
+
+/**
+ * Replace the writable host allowlist (SHORTENER_HOSTS_FILE) with `list` and
+ * reload. Throws if no hosts file is configured or a host is malformed.
+ * @param {string[]} list
+ * @returns {string[]} the new effective allowlist
+ */
+export function writeAllowedHosts(list) {
+  if (!config.hostsFile) {
+    throw new Error("no SHORTENER_HOSTS_FILE configured -- allowlist is read-only here");
+  }
+  const clean = [
+    ...new Set(
+      (Array.isArray(list) ? list : [])
+        .map((h) => String(h || "").trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+  const bad = clean.find((h) => !isValidHost(h));
+  if (bad) throw new Error(`"${bad}" is not a valid host`);
+
+  const body =
+    "# Tab Share shortener -- allowed redirect-target hosts (one per line).\n" +
+    "# Managed by the admin panel; edits here are picked up on the next reload.\n" +
+    clean.join("\n") +
+    (clean.length ? "\n" : "");
+  const tmp = `${config.hostsFile}.tmp`;
+  mkdirSync(path.dirname(config.hostsFile), { recursive: true });
+  writeFileSync(tmp, body, "utf8");
+  renameSync(tmp, config.hostsFile);
+  return reloadAllowedHosts();
 }
 
 /** True when `host` (which may include :port) is an allowed redirect target. */
