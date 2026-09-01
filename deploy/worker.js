@@ -20,7 +20,7 @@ const KV_TTL_SECONDS = 60 * 60 * 24 * 365;
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
   "access-control-allow-headers": "content-type",
   "access-control-max-age": "86400",
   // Chrome Private Network Access (see ../src/server.mjs). Harmless for a
@@ -152,10 +152,12 @@ export default {
   async fetch(req, env) {
     const u = new URL(req.url);
     const p = u.pathname;
+    // HEAD is routed like GET; the runtime strips the body from the Response.
+    const method = req.method === "HEAD" ? "GET" : req.method;
 
-    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+    if (method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
-    if (req.method === "GET" && p === "/api/health") {
+    if (method === "GET" && p === "/api/health") {
       return json({ ok: true, allowedHosts: allowedHosts(env).length ? allowedHosts(env) : ["*"], maxUrlBytes: MAX_URL_BYTES });
     }
 
@@ -171,19 +173,19 @@ export default {
         : json({ error: r.error }, r.status);
     }
 
-    if (p === "/new" && req.method === "GET") {
+    if (p === "/new" && method === "GET") {
       const r = await shorten(u.searchParams.get("url"), u.searchParams.get("mode"), env);
       return r.ok ? text(r.shortUrl) : text(r.error, r.status);
     }
 
-    if (req.method === "GET" && p !== "/" && p.length > 1) {
+    if (method === "GET" && p !== "/" && p.length > 1) {
       const code = decodeURIComponent(p.slice(1));
       if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,79})$/.test(code)) return text("not found", 404);
       const long = await env.LINKS.get(code);
       return long ? redirectResponse(long) : text("unknown or expired link", 404);
     }
 
-    if (req.method === "GET") return text("tab-share-shortener");
+    if (method === "GET") return text("tab-share-shortener");
     return text("method not allowed", 405);
   },
 };

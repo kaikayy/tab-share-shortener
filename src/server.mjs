@@ -31,7 +31,7 @@ initAccessLog();
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
   "access-control-allow-headers": "content-type",
   "access-control-max-age": "86400",
   // Chrome Private Network Access: a page on a public origin (or an extension,
@@ -200,8 +200,11 @@ async function handleShorten(req, res, urlObj) {
 function handleRedirect(req, res, code) {
   const entry = store.get(code);
   if (!entry) return sendText(res, 404, "unknown or expired link");
-  if (config.countHits) store.bumpHits(code);
-  logHit(code, clientIp(req));
+  // a HEAD probe (link previews, monitors) is not a real click
+  if (req.method !== "HEAD") {
+    if (config.countHits) store.bumpHits(code);
+    logHit(code, clientIp(req));
+  }
   redirect(res, entry.url);
 }
 
@@ -227,10 +230,18 @@ const server = http.createServer(
     }
     const pathname = urlObj.pathname;
 
-    try {
-      if (req.method === "OPTIONS") return send(res, 204, {}, "");
+    // HEAD is routed like GET but must not carry a body (Node writes it otherwise).
+    if (req.method === "HEAD") {
+      res.write = () => true;
+      const realEnd = res.end.bind(res);
+      res.end = (a, b, c) => realEnd(typeof a === "function" ? a : typeof b === "function" ? b : c);
+    }
+    const method = req.method === "HEAD" ? "GET" : req.method;
 
-      if (req.method === "GET" && pathname === "/api/health") {
+    try {
+      if (method === "OPTIONS") return send(res, 204, {}, "");
+
+      if (method === "GET" && pathname === "/api/health") {
         return sendJson(res, 200, {
           ok: true,
           store: store.stats(),
@@ -240,23 +251,23 @@ const server = http.createServer(
         });
       }
 
-      if (pathname === "/api/shorten" && (req.method === "POST" || req.method === "GET")) {
+      if (pathname === "/api/shorten" && (req.method === "POST" || method === "GET")) {
         return await handleShorten(req, res, urlObj);
       }
 
-      if (req.method === "GET" && pathname === "/new") {
+      if (method === "GET" && pathname === "/new") {
         return await handleShorten(req, res, urlObj);
       }
 
-      if (req.method === "GET" && (pathname === "/" || pathname === "")) {
+      if (method === "GET" && (pathname === "/" || pathname === "")) {
         return send(res, 200, { "content-type": "text/html; charset=utf-8" }, INFO_PAGE);
       }
 
-      if (req.method === "GET" && pathname === "/favicon.ico") {
+      if (method === "GET" && pathname === "/favicon.ico") {
         return send(res, 204, {}, "");
       }
 
-      if (req.method === "GET") {
+      if (method === "GET") {
         const code = decodeURIComponent(pathname.slice(1));
         if (looksLikeCode(code)) return handleRedirect(req, res, code);
         return sendText(res, 404, "not found");

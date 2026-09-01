@@ -157,6 +157,25 @@ test("POST /api/shorten (code) then redirect round-trips", async () => {
   assert.equal(red.headers.get("cache-control"), "no-store");
 });
 
+test("HEAD behaves like GET, no body, no hit bump", async () => {
+  const target = `${VIEWER}#head_probe_v3`;
+  const code = JSON.parse((await api("POST", "/api/shorten", { json: { url: target, mode: "code" } })).text).code;
+
+  const h = await api("HEAD", "/api/health");
+  assert.equal(h.status, 200);
+  assert.equal(h.text, ""); // headers only
+
+  const before = store.get(code).hits || 0;
+  const red = await api("HEAD", `/${code}`);
+  assert.equal(red.status, 302);
+  assert.equal(red.headers.get("location"), target);
+  assert.equal(red.text, "");
+  assert.equal((store.get(code).hits || 0), before); // HEAD is not a click
+
+  const bad = await api("HEAD", "/no-such-code");
+  assert.equal(bad.status, 404);
+});
+
 test("POST /api/shorten (words) returns a readable slug", async () => {
   const r = await api("POST", "/api/shorten", { json: { url: `${VIEWER}#x`, mode: "words" } });
   assert.equal(r.status, 201);

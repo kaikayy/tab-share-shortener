@@ -50,6 +50,18 @@ test("POST shorten (code) + redirect", async () => {
   assert.equal(red.headers.get("cache-control"), "no-store");
 });
 
+test("HEAD is routed like GET", async () => {
+  const env = makeEnv();
+  const b = await (await worker.fetch(req("/api/shorten", jbody({ url: `${VIEWER}#head_v3`, mode: "code" })), env)).json();
+
+  const h = await worker.fetch(req("/api/health", { method: "HEAD" }), env);
+  assert.equal(h.status, 200);
+
+  const red = await worker.fetch(req(`/${b.code}`, { method: "HEAD" }), env);
+  assert.equal(red.status, 302);
+  assert.equal(red.headers.get("location"), `${VIEWER}#head_v3`);
+});
+
 test("words mode slug shape", async () => {
   const r = await worker.fetch(req("/api/shorten", jbody({ url: `${VIEWER}#x`, mode: "words" })), makeEnv());
   assert.equal(r.status, 201);
