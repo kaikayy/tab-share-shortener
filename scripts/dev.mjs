@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * dev.mjs — run the shortener with local-friendly defaults.
+ * dev.mjs -- run the shortener with local-friendly defaults.
  *
  *   - listens on :8779
  *   - short links look like http://localhost:8779/<code>

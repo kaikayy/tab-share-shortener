@@ -1,5 +1,5 @@
 /*!
- * cloudflare-worker.js — the same service as a Worker + KV.
+ * cloudflare-worker.js -- the same service as a Worker + KV.
  *
  * Setup:
  *   wrangler init tab-share-shortener
@@ -15,7 +15,7 @@
 
 const ADJECTIVES = ["swift", "amber", "calm", "bold", "misty", "lunar", "hardy", "quiet", "brisk", "golden", "hidden", "noble", "rustic", "silver", "sunny", "vivid", "wild", "azure", "cosmic", "gentle"];
 const NOUNS = ["otter", "canyon", "harbor", "meadow", "cedar", "falcon", "glacier", "lagoon", "summit", "willow", "beacon", "thicket", "raven", "quartz", "delta", "grove", "heron", "tundra", "vista", "wren"];
-// ^ trimmed sample — paste the full arrays from ../src/words.mjs for production.
+// ^ trimmed sample -- paste the full arrays from ../src/words.mjs for production.
 
 const ALPHABET = "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
 const CORS = {
@@ -76,7 +76,7 @@ function redirect(url) {
   if (url.length <= 7000) return new Response(`Redirecting to ${url}`, { status: 302, headers: { ...common, location: url } });
   return new Response(
     `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${esc(url)}">` +
-      `<title>Redirecting…</title><a href="${esc(url)}">continue</a><script>location.replace(${JSON.stringify(url)})</script>`,
+      `<title>Redirecting...</title><a href="${esc(url)}">continue</a><script>location.replace(${JSON.stringify(url)})</script>`,
     { status: 200, headers: { ...common, "content-type": "text/html; charset=utf-8" } },
   );
 }

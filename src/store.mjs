@@ -1,9 +1,9 @@
 /*!
- * store.mjs — the link table.
+ * store.mjs -- the link table.
  *
  * File-backed JSON: the whole table is held in memory and flushed to disk
  * (atomic write + rename, debounced) after changes. Fine for local use and a
- * small self-host — tens of thousands of links. For anything bigger, swap this
+ * small self-host -- tens of thousands of links. For anything bigger, swap this
  * module for SQLite / Redis / a KV store; the surface it has to implement is
  * just: get, has, put, delete, stats.
  */
@@ -82,7 +82,7 @@ export class LinkStore {
     return this.map.has(code);
   }
 
-  /** @param {string} code @returns {Entry | null} — null if missing or expired */
+  /** @param {string} code @returns {Entry | null} -- null if missing or expired */
   get(code) {
     const e = this.map.get(code);
     if (!e) return null;

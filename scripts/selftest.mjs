@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * selftest.mjs — `npm test`
+ * selftest.mjs -- `npm test`
  *
  * Unit checks on the pure modules, then a real HTTP round-trip against the
  * server (temp store, throwaway port). Exits non-zero on the first failure.

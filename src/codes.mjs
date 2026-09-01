@@ -1,18 +1,18 @@
 /*!
- * codes.mjs — generate the short code that follows the base URL.
+ * codes.mjs -- generate the short code that follows the base URL.
  *
  *   mode "code"  -> 7 chars from an unambiguous base-56 alphabet, e.g. "k7Rm2pq"
  *   mode "words" -> adjective-adjective-noun, e.g. "swift-amber-otter"
  *                   (a "-xx" suffix is added only when the first pick collides)
  *
- * `taken` is any function `(code) => boolean` — the store's has() check.
+ * `taken` is any function `(code) => boolean` -- the store's has() check.
  */
 
 import { randomInt } from "node:crypto";
 import { config } from "./config.mjs";
 import { ADJECTIVES, NOUNS } from "./words.mjs";
 
-// No 0/O, 1/l/I — safe to read aloud and retype.
+// No 0/O, 1/l/I -- safe to read aloud and retype.
 const ALPHABET = "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
 
 export const MODES = ["code", "words"];
@@ -62,7 +62,7 @@ export function generate(mode, taken) {
   for (let i = 0; i < 60; i++) {
     const cand = randomCode(length);
     if (!taken(cand)) return cand;
-    if (i > 0 && i % 12 === 0) length++; // getting crowded — widen
+    if (i > 0 && i % 12 === 0) length++; // getting crowded -- widen
   }
   throw new Error("code space exhausted (code)");
 }

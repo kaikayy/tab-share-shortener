@@ -1,5 +1,5 @@
 /*!
- * validate.mjs — decide whether a submitted URL may be stored.
+ * validate.mjs -- decide whether a submitted URL may be stored.
  *
  * The service is purpose-built for Tab Share links, so the target host must be
  * on the allowlist (see SHORTENER_HOSTS). That single rule is what keeps this
@@ -48,7 +48,7 @@ export function validateTarget(raw) {
       return { ok: false, status: 400, error: "refusing to shorten a link on this host" };
     }
   } catch {
-    /* base misconfigured — skip the self-check */
+    /* base misconfigured -- skip the self-check */
   }
 
   if (!hostAllowed(u.host)) {

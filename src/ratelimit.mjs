@@ -1,5 +1,5 @@
 /*!
- * ratelimit.mjs — a plain in-memory rolling-window counter, keyed by client IP.
+ * ratelimit.mjs -- a plain in-memory rolling-window counter, keyed by client IP.
  *
  * Guards the creation endpoints only; redirects are unlimited. Good enough for
  * a single instance. Behind multiple instances, put a real limiter at the proxy.
@@ -28,7 +28,7 @@ export class RateLimiter {
     return true;
   }
 
-  /** Drop stale keys — call on an interval. */
+  /** Drop stale keys -- call on an interval. */
   sweep() {
     const cutoff = Date.now() - 60_000;
     for (const [k, arr] of this.hits) {

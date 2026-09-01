@@ -1,9 +1,9 @@
 /*!
- * words.mjs — curated wordlists for the "words" code mode.
+ * words.mjs -- curated wordlists for the "words" code mode.
  *
  * Both lists are deliberately bland: nature, weather, animals, materials,
  * neutral/positive adjectives. No slurs, no profanity, nothing that reads as
- * an insult when three are stuck together. All lowercase a-z, 3–8 letters,
+ * an insult when three are stuck together. All lowercase a-z, 3-8 letters,
  * no lookalike pairs to worry about since the slug is words, not characters.
  *
  * Keyspace with the current lists: |ADJ|^2 * |NOUN|  (well over 10 million),

@@ -1,5 +1,5 @@
 /*!
- * server.mjs — the whole HTTP service.
+ * server.mjs -- the whole HTTP service.
  *
  *   POST /api/shorten     { url, mode?: "code"|"words", ttlDays?: number }
  *                         -> { code, shortUrl, mode, expires }
@@ -105,8 +105,8 @@ function redirect(res, url) {
     200,
     { ...common, "content-type": "text/html; charset=utf-8" },
     `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex">` +
-      `<meta http-equiv="refresh" content="0;url=${h}"><title>Redirecting…</title>` +
-      `<p>Redirecting… <a href="${h}">continue</a></p><script>location.replace(${j})</script>`,
+      `<meta http-equiv="refresh" content="0;url=${h}"><title>Redirecting...</title>` +
+      `<p>Redirecting... <a href="${h}">continue</a></p><script>location.replace(${j})</script>`,
   );
 }
 
@@ -114,7 +114,7 @@ function redirect(res, url) {
 
 async function handleShorten(req, res, urlObj) {
   if (!limiter.allow(clientIp(req))) {
-    return sendJson(res, 429, { error: "rate limited — try again in a minute" });
+    return sendJson(res, 429, { error: "rate limited -- try again in a minute" });
   }
 
   let inputUrl;
@@ -181,7 +181,7 @@ const INFO_PAGE =
   `<style>body{font:14px/1.6 system-ui,sans-serif;max-width:34rem;margin:3rem auto;padding:0 1rem}code{background:#8881;padding:.1em .3em;border-radius:3px}</style>` +
   `<h1>Tab Share link shortener</h1>` +
   `<p>Shorten a Tab Share link:</p>` +
-  `<pre><code>curl -X POST ${esc(config.base)}/api/shorten \\\n  -H 'content-type: application/json' \\\n  -d '{"url":"https://…/#token","mode":"words"}'</code></pre>` +
+  `<pre><code>curl -X POST ${esc(config.base)}/api/shorten \\\n  -H 'content-type: application/json' \\\n  -d '{"url":"https://.../#token","mode":"words"}'</code></pre>` +
   `<p>Modes: <code>code</code> (random) · <code>words</code> (readable). ` +
   `Source: <a href="https://github.com/kaikayy/multi-link-share">AGPL-3.0</a>.</p>`;
 

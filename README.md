@@ -1,14 +1,14 @@
 # Tab Share link shortener
 
 A tiny, self-hostable shortener for [Tab Share](https://github.com/kaikayy/multi-link-share)
-links — the ones that carry a whole tab collection in the URL `#fragment` and
+links -- the ones that carry a whole tab collection in the URL `#fragment` and
 can run to several kilobytes.
 
 - **Any length.** A 40-page collection is ~4 KB; a 100-page encrypted one ~6 KB.
   This service takes it (POST body, or a large GET) where TinyURL / is.gd choke.
 - **Two code styles.**
-  - `code` — short and random: `s.example.com/k7Rm2pq`
-  - `words` — readable, Twitch-clip style: `s.example.com/swift-amber-otter`
+  - `code` -- short and random: `s.example.com/k7Rm2pq`
+  - `words` -- readable, Twitch-clip style: `s.example.com/swift-amber-otter`
 - **No account, no tracking beyond an optional hit counter.**
 - **Not an open redirector.** It only shortens links pointing at a host on its
   allowlist (your Tab Share viewer), which is what keeps it off the phishing radar.
@@ -16,7 +16,7 @@ can run to several kilobytes.
   swap in SQLite / KV for a real deployment. A Cloudflare Worker port is in
   [`deploy/`](deploy/).
 
-Licensed **AGPL-3.0-only** (it's a network service — same terms as Tab Share).
+Licensed **AGPL-3.0-only** (it's a network service -- same terms as Tab Share).
 
 ## Run it locally
 
@@ -39,16 +39,16 @@ The service already speaks the extension's existing **custom endpoint** contract
 so no extension changes are needed to try it:
 
 1. `npm run dev` here.
-2. In Tab Share's **Options → Shorten links → Custom endpoint**, paste
+2. In Tab Share's **Options -> Shorten links -> Custom endpoint**, paste
    `http://localhost:8779/new?url=` and Save (approve the host prompt).
 3. Optionally tick **Shorten automatically**.
-4. Create a share link — it comes back as `http://localhost:8779/<code>`.
+4. Create a share link -- it comes back as `http://localhost:8779/<code>`.
 
 For the readable mode over the compat endpoint, use
 `http://localhost:8779/new?mode=words&url=`.
 
 A native provider entry (and a mode toggle in the popup) is a follow-up change
-in the extension repo — see [`ROADMAP` in multi-link-share](https://github.com/kaikayy/multi-link-share/blob/main/ROADMAP.md).
+in the extension repo -- see [`ROADMAP` in multi-link-share](https://github.com/kaikayy/multi-link-share/blob/main/ROADMAP.md).
 
 ## API
 
@@ -64,7 +64,7 @@ follow, and [`SELF-HOSTING.md`](SELF-HOSTING.md) to deploy.
 
 ## Configuration
 
-Every knob is an env var — full list and defaults in [`src/config.mjs`](src/config.mjs).
+Every knob is an env var -- full list and defaults in [`src/config.mjs`](src/config.mjs).
 The ones you'll actually set:
 
 | Env | Default | |

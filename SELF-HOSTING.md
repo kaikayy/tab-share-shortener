@@ -5,7 +5,7 @@ options.
 
 ---
 
-## Path A — Node on your own server
+## Path A -- Node on your own server
 
 Prerequisites: **Node ≥ 20**. No npm install (zero dependencies).
 
@@ -41,7 +41,7 @@ server {
 ### Storage
 
 Default is one JSON file (`data/links.json`), rewritten atomically after each
-change. Fine into the tens of thousands of links. **Back it up** — losing it
+change. Fine into the tens of thousands of links. **Back it up** -- losing it
 404s every short link. For more volume, replace `src/store.mjs` (its surface is
 just `get / has / put / delete / bumpHits / stats`) with SQLite or Redis; the
 rest of the service doesn't change.
@@ -55,7 +55,7 @@ in front and expect to handle takedown requests.
 
 ---
 
-## Path B — Cloudflare Worker + KV
+## Path B -- Cloudflare Worker + KV
 
 ```bash
 npm create cloudflare@latest tab-share-shortener   # "Hello World" Worker
@@ -93,7 +93,7 @@ default (edit in the file).
 
 Today, without any extension change, use the compat endpoint:
 
-**Tab Share → Options → Shorten links → Custom endpoint**
+**Tab Share -> Options -> Shorten links -> Custom endpoint**
 
 ```
 https://s.example.com/new?url=
@@ -116,5 +116,5 @@ curl -s https://s.example.com/api/health
 curl -s -X POST https://s.example.com/api/shorten \
   -H 'content-type: application/json' \
   -d '{"url":"https://you.github.io/multi-link-share/#test","mode":"words"}'
-# open the shortUrl — it must land on your viewer with the #fragment intact
+# open the shortUrl -- it must land on your viewer with the #fragment intact
 ```

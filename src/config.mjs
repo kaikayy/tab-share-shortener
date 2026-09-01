@@ -1,5 +1,5 @@
 /*!
- * config.mjs — every knob, read once from the environment.
+ * config.mjs -- every knob, read once from the environment.
  *
  * Nothing here is secret. Override any value with an env var of the same name,
  * e.g.  SHORTENER_BASE=https://s.example.com  SHORTENER_HOSTS=me.github.io node src/server.mjs
@@ -42,7 +42,7 @@ export const config = {
   host: envStr("SHORTENER_HOST", "127.0.0.1"),
 
   /**
-   * Public origin the short links are built from — no trailing slash.
+   * Public origin the short links are built from -- no trailing slash.
    * This is what goes in front of the code: `${base}/${code}`.
    */
   base: envStr("SHORTENER_BASE", `http://localhost:${PORT}`).replace(/\/+$/, ""),
@@ -51,7 +51,7 @@ export const config = {
    * Hosts a submitted link is allowed to point at (the Tab Share viewer
    * host, usually). Exact host[:port] match, case-insensitive. `localhost`
    * and `127.0.0.1` on any port are always allowed so local testing works.
-   * An empty list means "allow any https host" — only do that behind auth.
+   * An empty list means "allow any https host" -- only do that behind auth.
    */
   allowedHosts: envList("SHORTENER_HOSTS", ["kaikayy.github.io"]),
 
