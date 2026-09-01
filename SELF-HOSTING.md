@@ -139,13 +139,20 @@ SHORTENER_HOSTS_FILE=/etc/tab-share-shortener/allowed-viewers.txt node src/serve
 
 ### Running a shortener other people can use
 
-If you host an instance for others, keep the list in
-`deploy/allowed-viewers.txt` (git-tracked in your fork) and point
-`SHORTENER_HOSTS_FILE` at it. Self-hosters request an addition with the
-**"Add my viewer host to the allowlist"** issue form; you verify the URL serves
-the real viewer and merge the one-line change. No code deploy and no restart --
-send the process `SIGHUP` and it re-reads `SHORTENER_HOSTS_FILE` in place
-(`systemctl reload` if you add `ExecReload=/bin/kill -HUP $MAINPID` to the unit).
+You can also let other people route *their* self-hosted viewers through your
+instance. Keep the list in `deploy/allowed-viewers.txt` (git-tracked in your
+fork) and point `SHORTENER_HOSTS_FILE` at it. Self-hosters request an addition
+with the **"Add my viewer host to the allowlist"** issue form; you verify the
+URL serves the real viewer and merge the one-line change. No code deploy and no
+restart -- send the process `SIGHUP` and it re-reads `SHORTENER_HOSTS_FILE` in
+place (`systemctl reload` if you add `ExecReload=/bin/kill -HUP $MAINPID` to the
+unit).
+
+This is opt-in and up to each operator. The canonical instance run by the Tab
+Share author currently serves **only its own viewer** (`kaikayy.github.io`);
+accepting other people's viewers is planned, not yet live. Until then, run your
+own instance -- it is a few minutes (see Path A above) and it always allows
+your own viewer.
 
 ---
 

@@ -10,6 +10,10 @@ body:
         `deploy/allowed-viewers.txt`. If you run **your own** shortener, you do
         not need this -- just add your host to `SHORTENER_HOSTS` (see
         [SELF-HOSTING.md](../../SELF-HOSTING.md#using-it-with-your-own-viewer)).
+
+        Note: the canonical instance does not yet accept external viewers
+        (own viewer only for now). File this against a fork whose operator has
+        opted in, or run your own instance in the meantime.
   - type: input
     id: host
     attributes:
