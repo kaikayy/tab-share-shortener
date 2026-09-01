@@ -1,0 +1,40 @@
+# systemd unit for Path A (Node on your own box).
+#
+# System-wide:  copy to /etc/systemd/system/, run as a dedicated user, then
+#   sudo systemctl enable --now tab-share-shortener
+#
+# Per-user (no root): copy to ~/.config/systemd/user/, then
+#   systemctl --user enable --now tab-share-shortener
+#   sudo loginctl enable-linger $USER      # optional: keep running after logout
+#
+# Replace the three ALL-CAPS paths and the two vars.
+
+[Unit]
+Description=Tab Share link shortener
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/PATH/TO/tab-share-shortener
+ExecStart=/usr/bin/node src/server.mjs
+Restart=on-failure
+RestartSec=2
+
+Environment=SHORTENER_HOST=127.0.0.1
+Environment=SHORTENER_PORT=8779
+Environment=SHORTENER_BASE=https://YOUR-DOMAIN
+Environment=SHORTENER_HOSTS=your-viewer-host.example
+Environment=SHORTENER_STORE=/PATH/TO/data/links.json
+Environment=SHORTENER_TRUST_PROXY=1
+Environment=SHORTENER_TTL_DAYS=0
+
+# hardening (optional, safe defaults)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/PATH/TO/data
+ProtectHome=read-only
+
+[Install]
+WantedBy=default.target

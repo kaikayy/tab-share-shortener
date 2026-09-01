@@ -21,8 +21,20 @@ SHORTENER_TRUST_PROXY=1 \
 node src/server.mjs
 ```
 
-Run it under systemd / pm2 / a container so it restarts. Then a reverse proxy
-terminates HTTPS:
+Run it under systemd / pm2 / a container so it restarts. A ready-to-edit unit
+is in [`deploy/tab-share-shortener.service`](deploy/tab-share-shortener.service):
+
+```bash
+# per-user, no root:
+mkdir -p ~/.config/systemd/user ~/tab-share-shortener/data
+cp deploy/tab-share-shortener.service ~/.config/systemd/user/
+# edit the paths + vars in that copy, then:
+systemctl --user daemon-reload
+systemctl --user enable --now tab-share-shortener
+sudo loginctl enable-linger $USER   # optional: survive logout / reboot
+```
+
+Then a reverse proxy terminates HTTPS:
 
 ```nginx
 server {
