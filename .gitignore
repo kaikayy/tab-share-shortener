@@ -6,3 +6,6 @@ data/*.json.tmp
 .env
 deploy/wrangler.toml
 .wrangler/
+
+# promo banners -- generated/iterated locally, not tracked
+assets/promo-banner-*
