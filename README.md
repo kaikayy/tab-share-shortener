@@ -21,8 +21,9 @@ Licensed **AGPL-3.0-only** (it's a network service -- same terms as Tab Share).
 ## Run it locally
 
 ```bash
-npm test          # 18 checks, no network
+npm test          # 27 checks (Node server + Worker), no network
 npm run dev       # http://localhost:8779, accepts localhost:8777 + kaikayy.github.io targets
+npm run gen:worker  # regenerate deploy/worker-words.js after editing src/words.mjs
 ```
 
 ```bash

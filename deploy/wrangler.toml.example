@@ -1,0 +1,26 @@
+# Copy to wrangler.toml, fill in the KV id, then `npx wrangler deploy`.
+# Docs: ../SELF-HOSTING.md
+
+name = "tab-share-shortener"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+# `npx wrangler kv namespace create LINKS` prints this id.
+[[kv_namespaces]]
+binding = "LINKS"
+id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+[vars]
+# Public origin the short links are built from -- no trailing slash.
+# Set this to your Worker route / custom domain once you have one.
+SHORTENER_BASE = "https://tab-share-shortener.YOUR-SUBDOMAIN.workers.dev"
+
+# Comma-separated hosts a submitted link may point at (your Tab Share viewer).
+# Leave empty for "open mode" -- only behind auth / a trusted network.
+SHORTENER_HOSTS = "kaikayy.github.io"
+
+# Optional: a custom domain instead of *.workers.dev
+# [[routes]]
+# pattern = "s.example.com"
+# custom_domain = true

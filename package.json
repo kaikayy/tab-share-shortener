@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node src/server.mjs",
     "dev": "node scripts/dev.mjs",
-    "test": "node scripts/selftest.mjs"
+    "gen:worker": "node scripts/gen-worker.mjs",
+    "test": "node scripts/selftest.mjs && node scripts/selftest-worker.mjs"
   },
   "devDependencies": {}
 }

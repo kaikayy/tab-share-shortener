@@ -4,3 +4,5 @@ data/*.json.tmp
 *.log
 .DS_Store
 .env
+deploy/wrangler.toml
+.wrangler/
