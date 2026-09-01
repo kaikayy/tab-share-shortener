@@ -23,6 +23,9 @@ const CORS = {
   "access-control-allow-methods": "GET, POST, OPTIONS",
   "access-control-allow-headers": "content-type",
   "access-control-max-age": "86400",
+  // Chrome Private Network Access (see ../src/server.mjs). Harmless for a
+  // public Worker; needed if the Worker is ever run/proxied on a LAN address.
+  "access-control-allow-private-network": "true",
 };
 
 const rand = (n) => {

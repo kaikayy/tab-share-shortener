@@ -174,6 +174,13 @@ test("unknown code -> 404", async () => {
   assert.equal(r.status, 404);
 });
 
+test("oversized POST body -> clean 413 (not a connection reset)", async () => {
+  const huge = `${VIEWER}#` + "a".repeat(400 * 1024); // > maxBodyBytes
+  const r = await api("POST", "/api/shorten", { json: { url: huge } });
+  assert.equal(r.status, 413);
+  assert.match(r.text, /exceeds/);
+});
+
 test("store persists to disk", async () => {
   const target = `${VIEWER}#persisttest`;
   const r = await api("POST", "/api/shorten", { json: { url: target } });

@@ -32,6 +32,11 @@ const CORS = {
   "access-control-allow-methods": "GET, POST, OPTIONS",
   "access-control-allow-headers": "content-type",
   "access-control-max-age": "86400",
+  // Chrome Private Network Access: a page on a public origin (or an extension,
+  // in newer Chrome) fetching a private address (localhost / LAN) sends a
+  // preflight with `Access-Control-Request-Private-Network: true` and needs
+  // this header back or the request is blocked before it reaches us.
+  "access-control-allow-private-network": "true",
 };
 
 function send(res, status, headers, body) {
@@ -59,16 +64,24 @@ function readBody(req, limit) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
+    let over = false;
     req.on("data", (c) => {
+      if (over) return;
       size += c.length;
       if (size > limit) {
-        reject(Object.assign(new Error("body too large"), { status: 413 }));
-        req.destroy();
+        over = true;
+        // Stop buffering, but drain the rest of the upload (req.resume) so the
+        // socket stays healthy long enough for the caller to send a clean 413
+        // instead of the client seeing an ECONNRESET.
+        req.resume();
+        reject(Object.assign(new Error(`request body exceeds ${limit} bytes`), { status: 413 }));
         return;
       }
       chunks.push(c);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("end", () => {
+      if (!over) resolve(Buffer.concat(chunks).toString("utf8"));
+    });
     req.on("error", reject);
   });
 }
@@ -240,6 +253,22 @@ const server = http.createServer(
     }
   },
 );
+
+// A GET /new URL longer than maxHeaderSize trips the HTTP parser before the
+// request handler runs. Answer with a clear 431 pointing at POST instead of
+// letting the client see a bare connection drop.
+server.on("clientError", (err, socket) => {
+  if (!socket.writable) return socket.destroy();
+  const tooBig = err && err.code === "HPE_HEADER_OVERFLOW";
+  const status = tooBig ? "431 Request Header Fields Too Large" : "400 Bad Request";
+  const body = tooBig
+    ? "The request URL is too long for GET /new -- use POST /api/shorten for very large links."
+    : "Bad request.";
+  socket.end(
+    `HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Type: text/plain\r\n` +
+      `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
+  );
+});
 
 function shutdown() {
   try {
