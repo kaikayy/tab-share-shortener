@@ -1,0 +1,17 @@
+{
+  "name": "tab-share-shortener",
+  "version": "0.1.0",
+  "description": "First-party link shortener for Tab Share — accepts share links of any length, two code modes (random / readable words), no account, self-hostable.",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test": "node scripts/selftest.mjs"
+  },
+  "devDependencies": {}
+}
