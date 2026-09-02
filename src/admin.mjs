@@ -20,6 +20,7 @@ import { config, writeAllowedHosts } from "./config.mjs";
 import { validateTarget } from "./validate.mjs";
 import { generate, normalizeMode, looksLikeCode } from "./codes.mjs";
 import * as analytics from "./analytics.mjs";
+import { domainHistogram } from "./collections.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PKG_VERSION = (() => {
@@ -271,11 +272,18 @@ export async function handleAdmin(req, res, urlObj, { store }) {
           summary: analytics.summary(range),
           topLinks: analytics.topLinks(range, 25),
           referrers: analytics.referrers(range, 25),
+          browsers: analytics.browsers(range, 25),
           rejects: analytics.rejectReasons(range),
           recent: analytics.recentEvents(120),
         }),
         true
       );
+    }
+
+    // On-demand only: decode every stored link's collection and tally the
+    // registrable domain of each page. Computed now, kept nowhere.
+    if (method === "GET" && p === "/admin/api/domains") {
+      return sendJson(res, 200, domainHistogram(store)), true;
     }
 
     if (method === "GET" && p === "/admin/api/export") {
@@ -539,7 +547,19 @@ async function renderTraffic(v){
   v.innerHTML='<div class="card"><h2>daily</h2><div style="color:var(--mut)">'+barChart(d.summary.series)+'</div></div>'+
     '<div class="card"><h2>busiest links ('+range+'d)</h2>'+bars(d.topLinks.map(r=>({k:r.code,v:r.hits})),r=>'<code>'+esc(r.k)+'</code>')+'</div>'+
     '<div class="card"><h2>referrers ('+range+'d)</h2>'+bars(d.referrers.map(r=>({k:r.host,v:r.hits})),r=>esc(r.k))+'</div>'+
-    (d.rejects.length?'<div class="card"><h2>rejected ('+range+'d)</h2>'+bars(d.rejects.map(r=>({k:r.reason,v:r.count})),r=>esc(r.k))+'</div>':'');
+    '<div class="card"><h2>browsers ('+range+'d)</h2>'+bars((d.browsers||[]).map(r=>({k:r.browser,v:r.hits})),r=>esc(r.k))+'</div>'+
+    (d.rejects.length?'<div class="card"><h2>rejected ('+range+'d)</h2>'+bars(d.rejects.map(r=>({k:r.reason,v:r.count})),r=>esc(r.k))+'</div>':'')+
+    '<div class="card"><h2>shared domains</h2>'+
+      '<p class="mut" style="margin:.2rem 0 .6rem">Decodes every stored link now and counts the registrable domain of each bundled page (<code>reddit.com</code>, never the post). Computed on request, kept nowhere.</p>'+
+      '<button class="act" id="analyze">analyze</button><div id="domres" style="margin-top:.7rem"></div></div>';
+  $('#analyze').onclick=async()=>{
+    $('#domres').innerHTML='<span class="mut">decoding...</span>';
+    try{
+      const r=await api('domains');
+      $('#domres').innerHTML='<p class="mut">'+r.decoded+' of '+r.links+' links decoded ('+r.encrypted+' encrypted, '+r.undecodable+' undecodable), '+r.pages+' pages, '+r.uniqueDomains+' domains</p>'+
+        bars(r.domains.slice(0,40).map(x=>({k:x.domain,v:x.pages,n:x.links})),x=>esc(x.k)+' <span class="mut">('+x.n+' link'+(x.n===1?'':'s')+')</span>');
+    }catch(err){$('#domres').innerHTML='<span class="mut">'+esc(err.message)+'</span>'}
+  };
 }
 async function renderHosts(v){
   const d=await api('hosts');

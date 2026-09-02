@@ -348,6 +348,49 @@ test("admin: analytics count redirects, creates and rejects", async () => {
   assert.ok(s.rejects.find((r) => r.reason === "host_not_allowed"));
 });
 
+test("admin: browser stats are a family + major version, from the UA", async () => {
+  const code = JSON.parse(
+    (await api("POST", "/api/shorten", { json: { url: `${VIEWER}#ua_probe` } })).text,
+  ).code;
+  await api("GET", `/${code}`, {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:130.0) Gecko/20100101 Firefox/130.0",
+    },
+  });
+  const s = JSON.parse((await admin("GET", "/admin/api/stats?range=7")).text);
+  assert.ok(s.browsers.find((b) => b.browser === "Firefox 130"));
+  // no raw UA string is retained anywhere
+  const dump = JSON.stringify(s);
+  assert.ok(!dump.includes("Gecko/20100101"));
+});
+
+test("admin: /admin/api/domains tallies bundled-page domains, not the viewer host", async () => {
+  const { createRequire } = await import("node:module");
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const require = createRequire(path.join(repoRoot, "src/lib/x.js"));
+  const ShareCodec = require("./share-codec.js");
+  const token = ShareCodec.encode({
+    title: "trip",
+    pages: [
+      { url: "https://old.reddit.com/r/travel/comments/abc/where/", title: "r" },
+      { url: "https://www.reddit.com/r/maps/comments/def/", title: "r2" },
+      { url: "https://github.com/foo/bar", title: "g" },
+      { url: "https://docs.bbc.co.uk/whatever", title: "b" },
+    ],
+  });
+  await api("POST", "/api/shorten", { json: { url: `${VIEWER}#${token}` } });
+
+  const h = JSON.parse((await admin("GET", "/admin/api/domains")).text);
+  const by = Object.fromEntries(h.domains.map((d) => [d.domain, d]));
+  assert.equal(by["reddit.com"].pages, 2); // www. and old. collapse
+  assert.equal(by["reddit.com"].links, 1);
+  assert.ok(by["github.com"]);
+  assert.ok(by["bbc.co.uk"]); // multi-part TLD kept
+  assert.ok(!by["kaikayy.github.io"]); // the viewer host is never counted as content
+  assert.ok(h.decoded >= 1 && h.pages >= 4);
+});
+
 /* ----------------------------- run ----------------------------- */
 
 let failed = 0;

@@ -9,19 +9,24 @@ can run to several kilobytes.
 - **Two code styles.**
   - `code` -- short and random: `s.example.com/k7Rm2pq`
   - `words` -- readable, Twitch-clip style: `s.example.com/swift-amber-otter`
-- **No account, aggregate-only stats.** Per-link hit counts and, by day, the
-  referring host of each click (no full referrer, no path, no IP, no cookies) --
-  see [PRIVACY.md](PRIVACY.md). Turn it all off with `SHORTENER_ANALYTICS=0`.
-  Identical links are de-duplicated -- shortening the same URL twice returns the
-  same code.
+- **No account, aggregate-only stats.** By day: per-link hit counts, the
+  referring host of each click, and the visitor's browser family + major version
+  -- **no IP, no geolocation, no full User-Agent, no cookies, no third-party
+  trackers, never sold.** See [PRIVACY.md](PRIVACY.md); turn it all off with
+  `SHORTENER_ANALYTICS=0`. Identical links are de-duplicated.
 - **Optional admin panel** at `/admin` (token-gated, off by default): link
-  table with revoke, manual/vanity links, host-allowlist editor, and those
-  analytics. See [SELF-HOSTING.md](SELF-HOSTING.md#admin-panel).
+  table (target **host only**; a destination is revealed one link at a time),
+  revoke, manual/vanity links, host-allowlist editor, the analytics above, and
+  an on-request histogram of the *domains* people bundle (`reddit.com`, never
+  the post). See [SELF-HOSTING.md](SELF-HOSTING.md#admin-panel).
 - **Not an open redirector.** It only shortens links pointing at a host on its
   allowlist (your Tab Share viewer), which is what keeps it off the phishing radar.
-- **Zero dependencies.** Plain Node 20+ (24+ for the SQLite backend). Storage is
-  a JSON file or `node:sqlite`, both built in. A Cloudflare Worker port and
-  Linux / Windows installers are in [`deploy/`](deploy/).
+- **No npm dependencies.** Plain Node 20+ (24+ for the SQLite backend). Storage
+  is a JSON file or `node:sqlite`, both built in. Vendors two files in
+  [`src/lib/`](src/lib/) -- lz-string (MIT) and the Tab Share share-codec
+  (AGPL-3.0, same project) -- used to decode a link's bundled-page domains for
+  the admin histogram. A Cloudflare Worker port and Linux / Windows installers
+  are in [`deploy/`](deploy/).
 
 Licensed **AGPL-3.0-only** (it's a network service -- same terms as Tab Share).
 

@@ -147,8 +147,10 @@ For the truncated IP to be the visitor's (not your proxy's), also set
 `/admin` gives you a link table (with **revoke** -- a soft delete that 404s the
 link but keeps the row), manual/vanity link creation, an editor for the host
 allowlist, and redirect analytics (daily counts, busiest links, referrer
-*hosts*, why links were rejected). It is one page, no build step, no external
-requests.
+*hosts*, **browser family + major version**, why links were rejected), plus an
+on-request histogram of the **registrable domains** people bundle (`reddit.com`,
+never the post -- computed when you click, kept nowhere). It is one page, no
+build step, no external requests.
 
 The link table shows the **target host only**. Revealing a stored destination
 (for a Tab Share link, the pages someone bundled) is a deliberate per-link
@@ -169,8 +171,9 @@ an `HttpOnly; Secure; SameSite=Strict` cookie), or send
 `Authorization: Bearer <TOKEN>` for scripts. The token is compared in constant
 time. Serve `/admin` over HTTPS only.
 
-Analytics are aggregate-only -- no IPs, no per-visitor rows, referrer host but
-never the path -- and live in `<store dir>/analytics.json`
+Analytics are aggregate-only -- no IPs, no geolocation, no cookies, no
+per-visitor rows; referrer *host* (never the path) and browser *family + major
+version* (never the full User-Agent) -- and live in `<store dir>/analytics.json`
 (`SHORTENER_ANALYTICS=0` disables them, `SHORTENER_ANALYTICS_DAYS` sets the
 retention, default 365). [`PRIVACY.md`](PRIVACY.md) has the full list of what a
 running instance keeps, in plain terms -- worth reading if you run this for

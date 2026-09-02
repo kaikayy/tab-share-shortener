@@ -23,9 +23,12 @@ Directions being considered:
 - Accept that a redirect handler can always log its target, and document that
   the guarantee is "not at rest / not casually", not "never observable".
 
-Interim (shipped in 0.2.1): the admin link list shows the **target host only**;
+Where it is now (0.2.2): the admin link list shows the **target host only**;
 seeing a destination is a deliberate per-link action, and the JSON export warns
-first.
+first. The panel *can* also decode all stored links on request into a
+domain-level histogram (`reddit.com`, never the post) -- useful, but it means
+the operator can still see, in aggregate, the kinds of sites people share. The
+end state above removes even that.
 
 ## MySQL / MariaDB storage backend
 

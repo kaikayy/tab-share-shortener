@@ -17,6 +17,7 @@
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config.mjs";
+import { parseUA } from "./ua.mjs";
 
 const SCHEMA = 1;
 const RECENT_MAX = 500;
@@ -52,7 +53,7 @@ function lastDays(n) {
 }
 
 function freshDay() {
-  return { hits: 0, creates: 0, rejects: 0, codes: {}, refs: {}, reasons: {} };
+  return { hits: 0, creates: 0, rejects: 0, codes: {}, refs: {}, reasons: {}, browsers: {} };
 }
 
 function bucket(ts) {
@@ -125,6 +126,7 @@ export function initAnalytics() {
           codes: v.codes && typeof v.codes === "object" ? v.codes : {},
           refs: v.refs && typeof v.refs === "object" ? v.refs : {},
           reasons: v.reasons && typeof v.reasons === "object" ? v.reasons : {},
+          browsers: v.browsers && typeof v.browsers === "object" ? v.browsers : {},
         });
       }
     }
@@ -166,13 +168,14 @@ export function stopAnalytics() {
 
 /* ------------------------------ recording ------------------------------ */
 
-export function recordHit(code, referer) {
+export function recordHit(code, referer, ua) {
   if (!config.analyticsEnabled) return;
   const d = bucket(Date.now());
   d.hits++;
   bump(d.codes, code);
   const host = refHost(referer);
   bump(d.refs, host);
+  bump(d.browsers, parseUA(ua));
   pushRecent({ t: Date.now(), type: "hit", code, host });
   scheduleFlush();
 }
@@ -239,6 +242,14 @@ export function topLinks(range = 30, limit = 20) {
 export function referrers(range = 30, limit = 20) {
   return Object.entries(tally(range, "refs"))
     .map(([host, hits]) => ({ host, hits }))
+    .sort((a, b) => b.hits - a.hits)
+    .slice(0, limit);
+}
+
+/** [{ browser, hits }] over the range -- "Chrome 141", "Firefox 130", ... */
+export function browsers(range = 30, limit = 20) {
+  return Object.entries(tally(range, "browsers"))
+    .map(([browser, hits]) => ({ browser, hits }))
     .sort((a, b) => b.hits - a.hits)
     .slice(0, limit);
 }

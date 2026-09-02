@@ -215,7 +215,7 @@ function handleRedirect(req, res, code) {
   if (req.method !== "HEAD") {
     if (config.countHits) store.bumpHits(code);
     logHit(code, clientIp(req));
-    analytics.recordHit(code, req.headers.referer || req.headers.referrer);
+    analytics.recordHit(code, req.headers.referer || req.headers.referrer, req.headers["user-agent"]);
   }
   redirect(res, entry.url);
 }

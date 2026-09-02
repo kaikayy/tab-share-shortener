@@ -1,6 +1,6 @@
 # Privacy -- Tab Share shortener
 
-_Last updated: 2026-09-02 (0.2.1)_
+_Last updated: 2026-09-02 (0.2.2)_
 
 This covers the **first-party instance at `s.kaikay.de`**, run by the Tab Share
 author. If you [self-host](SELF-HOSTING.md) the shortener, you are the operator
@@ -30,26 +30,50 @@ same code rather than storing it twice.
 
 ## What is recorded when a short link is opened
 
-On each redirect the server keeps:
+On each redirect the server keeps, all of it **aggregate** -- day-level
+counters, nothing tied to a person:
 
 - a **hit count** per short code, and the time of the last hit;
-- aggregated **by calendar day**: the number of redirects, and a tally of the
+- aggregated **by calendar day**: the number of redirects; a tally of the
   **host that referred each click** (for example `news.ycombinator.com`, or
-  `(direct)` when the browser sends no referrer). The full referring URL, the
-  page path and query string are **not** kept.
+  `(direct)` when the browser sends no referrer -- never the full referring
+  URL, path or query); and a tally of the visitor's **browser family and major
+  version** reduced from the User-Agent header (for example `Firefox 130`,
+  `Chrome 141`, `bot / preview`) -- never the full User-Agent, the OS, the
+  device, or the exact version;
 - day totals of links created and of rejected shorten attempts (with the
   reason, e.g. `host_not_allowed`);
 - a rolling list of roughly the last 500 events -- each one a timestamp, an
   event type, a short code, and a referrer host or a reject reason.
 
-**Not recorded:** IP addresses, user agents, geolocation, any per-visitor or
-per-device identifier, any cookie. The redirect response sets no cookie and
-carries `Referrer-Policy: no-referrer`.
+**Never recorded:** your **IP address**, **geolocation**, the full User-Agent,
+the OS or device, any **cookie**, and any per-visitor or per-device identifier
+or fingerprint. The redirect response sets **no cookie** and carries
+`Referrer-Policy: no-referrer` (so the destination site does not learn where the
+click came from either). There is **no third-party analytics, no advertising or
+tracking code** of any kind, first-party or otherwise.
 
 This data is retained for about **365 days**, then the old daily buckets are
 dropped. It is visible only to the operator, through a password-gated admin
-page (`/admin`). There is no third-party analytics, no ad or tracking code, and
-none of it is shared or sold.
+page (`/admin`).
+
+### We will never sell your data
+
+None of this -- the stored links, the aggregate counters, anything -- is ever
+sold, rented, or shared with third parties for advertising, marketing, or
+analytics. There is no business model here to make that tempting; it is a small
+service run at cost. The only disclosure that could ever happen is a specific,
+lawful legal demand, and there is very little to disclose.
+
+## Aggregate view of what is shared (on request)
+
+The admin panel can, **when the operator clicks a button**, decode every stored
+link and show a histogram of the **registrable domains** of the bundled pages
+(`reddit.com`, `github.com`, `wikipedia.org`) -- never the specific page, post,
+or query. This is computed on the spot and **kept nowhere**; nothing about page
+contents is logged or retained. Password-protected collections cannot be
+decoded and are only counted. Making an instance where the operator genuinely
+cannot do even this is on the [roadmap](ROADMAP.md).
 
 ## Access logs
 
@@ -63,7 +87,7 @@ runs with this **off**.
 
 | Setting | Effect |
 | --- | --- |
-| `SHORTENER_ANALYTICS=0` | no redirect analytics at all (no counts, no referrers, no event list) |
+| `SHORTENER_ANALYTICS=0` | no redirect analytics at all (no counts, no referrer/browser tallies, no event list) |
 | `SHORTENER_COUNT_HITS=0` | keep analytics off the read path entirely; no per-link hit counter |
 | `SHORTENER_ANALYTICS_DAYS=N` | change the retention window from 365 days |
 | `SHORTENER_LOG` unset | no per-request access log (the default) |
