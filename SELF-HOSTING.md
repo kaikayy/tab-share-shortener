@@ -171,9 +171,11 @@ time. Serve `/admin` over HTTPS only.
 Analytics are aggregate-only -- no IPs, no per-visitor rows, referrer host but
 never the path -- and live in `<store dir>/analytics.json`
 (`SHORTENER_ANALYTICS=0` disables them, `SHORTENER_ANALYTICS_DAYS` sets the
-retention, default 365). The allowlist editor needs `SHORTENER_HOSTS_FILE` set
-(the installer points it at `<data dir>/allowed-hosts.txt`); without it the
-allowlist view is read-only.
+retention, default 365). [`PRIVACY.md`](PRIVACY.md) has the full list of what a
+running instance keeps, in plain terms -- worth reading if you run this for
+other people. The allowlist editor needs `SHORTENER_HOSTS_FILE` set (the
+installer points it at `<data dir>/allowed-hosts.txt`); without it the allowlist
+view is read-only.
 
 ---
 

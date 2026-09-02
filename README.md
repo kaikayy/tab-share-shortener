@@ -9,12 +9,14 @@ can run to several kilobytes.
 - **Two code styles.**
   - `code` -- short and random: `s.example.com/k7Rm2pq`
   - `words` -- readable, Twitch-clip style: `s.example.com/swift-amber-otter`
-- **No account, no tracking beyond an optional hit counter.** Identical links
-  are de-duplicated -- shortening the same URL twice returns the same code.
+- **No account, aggregate-only stats.** Per-link hit counts and, by day, the
+  referring host of each click (no full referrer, no path, no IP, no cookies) --
+  see [PRIVACY.md](PRIVACY.md). Turn it all off with `SHORTENER_ANALYTICS=0`.
+  Identical links are de-duplicated -- shortening the same URL twice returns the
+  same code.
 - **Optional admin panel** at `/admin` (token-gated, off by default): link
-  table with revoke, manual/vanity links, host-allowlist editor, and
-  aggregate-only analytics -- no IPs, no per-visitor data. See
-  [SELF-HOSTING.md](SELF-HOSTING.md#admin-panel).
+  table with revoke, manual/vanity links, host-allowlist editor, and those
+  analytics. See [SELF-HOSTING.md](SELF-HOSTING.md#admin-panel).
 - **Not an open redirector.** It only shortens links pointing at a host on its
   allowlist (your Tab Share viewer), which is what keeps it off the phishing radar.
 - **Zero dependencies.** Plain Node 20+ (24+ for the SQLite backend). Storage is
