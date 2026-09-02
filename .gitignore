@@ -7,7 +7,8 @@ data/*.json.tmp
 deploy/wrangler.toml
 .wrangler/
 
-# promo banners -- generated/iterated locally, not tracked
+# promo banners -- 3x1 store variants iterated locally, not tracked
 assets/promo-banner-*
-# ...except the suite banner, which the README uses
-!assets/promo-banner-suite.png
+# ...except this repo's own banner, which the README uses
+!assets/promo-banner-shortener.png
+!assets/promo-banner-shortener.svg
