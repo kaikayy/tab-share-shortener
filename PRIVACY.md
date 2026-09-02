@@ -41,6 +41,11 @@ is kept until you delete it. The operator can also pin or expire any link from
 the admin panel. On a self-hosted instance, `SHORTENER_TTL_DAYS` sets the window
 (or `0` to keep links forever).
 
+The 30-day default was added in shortener 0.3.0. **Short links created before
+that (or on an instance running with `SHORTENER_TTL_DAYS=0`) have no expiry and
+stay stored** until the operator deletes them -- the lifetime is fixed when the
+link is made, so raising the default does not reach back to older links.
+
 ## What is recorded when a short link is opened
 
 On each redirect the server keeps, all of it **aggregate** -- day-level

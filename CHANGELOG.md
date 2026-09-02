@@ -10,7 +10,9 @@ Notable changes. Dates are `YYYY-MM-DD`.
   days after it was created -- default **30** (was: never). The full share link
   the user also copied is untouched; only the short code is forgotten. Expired
   rows are dropped lazily on read, on store load, and by an hourly sweep. Set
-  `SHORTENER_TTL_DAYS=0` to keep the old forever behaviour.
+  `SHORTENER_TTL_DAYS=0` to keep the old forever behaviour. **Links created
+  before this release have no expiry and keep resolving indefinitely** -- the
+  new default only applies to links minted from 0.3.0 onward.
 - **`keepToken` + `POST /api/keep`.** `POST /api/shorten` returns a per-link
   `keepToken` (on `GET /new` it rides in the `X-Keep-Token` header). `POST
   /api/keep { code, keepToken, ttlDays? }` pins the link (`ttlDays` omitted or

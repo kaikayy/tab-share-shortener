@@ -109,7 +109,9 @@ caller also copied is never affected -- only the short code is forgotten. To kee
 one for good, `POST /api/keep` with the `keepToken` you got back at creation
 (`ttlDays: 0` pins it; a positive `ttlDays` sets a fresh window). An operator can
 also pin or expire any link from the admin panel. Set `SHORTENER_TTL_DAYS=0` to
-make links never expire by default.
+make links never expire by default. Links created before this default existed
+(shortener < 0.3.0, or while `SHORTENER_TTL_DAYS` was `0`) carry no expiry and
+keep resolving -- the TTL is stamped once, when the link is made.
 
 See [`CONTRACT.md`](CONTRACT.md) for the exact rules a response/redirect must
 follow, and [`SELF-HOSTING.md`](SELF-HOSTING.md) to deploy.

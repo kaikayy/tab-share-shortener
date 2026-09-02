@@ -132,6 +132,12 @@ on read, on store load, and by an hourly sweep. `SHORTENER_TTL_DAYS=0` disables
 default expiry. Callers pin an individual link with `POST /api/keep` (using the
 `keepToken` from creation); operators pin or expire any link from `/admin`.
 
+The expiry is computed once, at creation, from the `SHORTENER_TTL_DAYS` in effect
+then. **Links already in the store when you upgrade to 0.3.0 (or that were made
+while `SHORTENER_TTL_DAYS` was `0`) have no expiry and keep resolving** -- raising
+the default only affects links created afterwards. To retro-fit an expiry onto
+old links, use the admin panel's per-link *expire* button.
+
 ### Keeping it from becoming a phishing tool
 
 Leave `SHORTENER_HOSTS` set to your viewer host(s). With that allowlist in
