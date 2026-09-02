@@ -125,6 +125,11 @@ The ones you'll actually set:
 | `SHORTENER_ADMIN_TOKEN` | off | set a long random string to enable `/admin`; unset = the tree 404s |
 | `SHORTENER_ANALYTICS` | `1` | `0` disables redirect analytics; `SHORTENER_ANALYTICS_DAYS` sets retention (365) |
 
+## Security
+
+Found a vulnerability? See [SECURITY.md](SECURITY.md) -- please report it
+privately, not as a public issue.
+
 ## Support
 
 If this project is useful to you, you can support development on Ko-fi:

@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         This is only for a **shared** shortener instance whose operator maintains
-        `deploy/allowed-viewers.txt`. If you run **your own** shortener, you do
+        a `SHORTENER_HOSTS_FILE` allowlist. If you run **your own** shortener, you do
         not need this -- just add your host to `SHORTENER_HOSTS` (see
         [SELF-HOSTING.md](../../SELF-HOSTING.md#using-it-with-your-own-viewer)).
 
