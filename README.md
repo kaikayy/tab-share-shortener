@@ -125,6 +125,12 @@ The ones you'll actually set:
 | `SHORTENER_ADMIN_TOKEN` | off | set a long random string to enable `/admin`; unset = the tree 404s |
 | `SHORTENER_ANALYTICS` | `1` | `0` disables redirect analytics; `SHORTENER_ANALYTICS_DAYS` sets retention (365) |
 
+## Contributing
+
+Bugs -> an issue. Questions and ideas -> [Discussions](https://github.com/kaikayy/tab-share-shortener/discussions).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Version history in
+[CHANGELOG.md](CHANGELOG.md).
+
 ## Security
 
 Found a vulnerability? See [SECURITY.md](SECURITY.md) -- please report it

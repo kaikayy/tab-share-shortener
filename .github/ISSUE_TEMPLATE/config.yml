@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / help / idea
+    url: https://github.com/kaikayy/tab-share-shortener/discussions
+    about: Use Discussions for questions, setup help, and feature ideas.
+  - name: Security vulnerability
+    url: https://github.com/kaikayy/tab-share-shortener/security/advisories/new
+    about: Report privately -- see SECURITY.md. Do not open a public issue.
+  - name: Tab Share extension
+    url: https://github.com/kaikayy/multi-link-share
+    about: Issues with the browser extension itself belong there.

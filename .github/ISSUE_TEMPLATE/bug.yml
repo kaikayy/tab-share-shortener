@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in the Node service or the Cloudflare Worker is broken.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For questions or setup help, use
+        [Discussions](https://github.com/kaikayy/tab-share-shortener/discussions)
+        instead. For a security issue, see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`node -p \"require('./package.json').version\"`, or the commit."
+      placeholder: "0.2.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Node (self-hosted)
+        - Cloudflare Worker
+        - the public s.kaikay.de instance
+        - not sure
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node version (if self-hosted Node)
+      placeholder: "v20.19.2"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got. Include the request/response if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: "`journalctl --user -u tab-share-shortener` etc. Redact any admin token."
+      render: text

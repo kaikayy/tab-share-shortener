@@ -5,6 +5,10 @@
   "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",
+  "homepage": "https://github.com/kaikayy/tab-share-shortener#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/kaikayy/tab-share-shortener.git" },
+  "bugs": { "url": "https://github.com/kaikayy/tab-share-shortener/issues" },
+  "keywords": ["url-shortener", "tab-share", "self-hosted", "zero-dependencies"],
   "engines": {
     "node": ">=20"
   },
