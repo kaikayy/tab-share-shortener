@@ -122,6 +122,16 @@ into `src/store.mjs`. Details and the other roadmap items in
 Identical links are **de-duplicated**: shortening the same URL twice returns the
 same code (the response carries `"reused": true`).
 
+### Link lifetime
+
+A new short code stops resolving `SHORTENER_TTL_DAYS` days after it was created
+(default **30**). This keeps unused links -- and the collection URLs stored with
+them -- from piling up forever. The full share link the user also copied always
+keeps working; only the short code is forgotten. Expired rows are dropped lazily
+on read, on store load, and by an hourly sweep. `SHORTENER_TTL_DAYS=0` disables
+default expiry. Callers pin an individual link with `POST /api/keep` (using the
+`keepToken` from creation); operators pin or expire any link from `/admin`.
+
 ### Keeping it from becoming a phishing tool
 
 Leave `SHORTENER_HOSTS` set to your viewer host(s). With that allowlist in
@@ -258,14 +268,17 @@ binding = "LINKS"
 id = "<the id wrangler printed>"
 
 [vars]
-SHORTENER_BASE  = "https://tab-share-shortener.<you>.workers.dev"
-SHORTENER_HOSTS = "you.github.io"
+SHORTENER_BASE     = "https://tab-share-shortener.<you>.workers.dev"
+SHORTENER_HOSTS    = "you.github.io"
+SHORTENER_TTL_DAYS = "30"
 ```
 
 `wrangler deploy` bundles `worker.js` + `worker-words.js` for you. Point a
 route or custom domain at the Worker and update `SHORTENER_BASE` to match. KV
-values get a 1-year TTL (constant at the top of `worker.js`). No rate limiter
-in the Worker -- use a Cloudflare rate-limiting rule if you need one.
+entries expire after `SHORTENER_TTL_DAYS` (default 30; `0` = never, and a
+`ttlDays` in the POST body overrides it per link). The Worker has no `/admin`
+and no `/api/keep` -- to pin a link, re-create it with `ttlDays: 0`. No rate
+limiter in the Worker -- use a Cloudflare rate-limiting rule if you need one.
 
 Test the deployed Worker the same way as Path A (`curl .../api/health`, then
 shorten and open a link).

@@ -42,7 +42,12 @@ the way `node:sqlite` is now. Same `openStore()` surface. The analytics store
 
 ## Smaller
 
-- Per-link expiry surfaced in the admin panel (the store already supports
-  `ttlDays`).
 - Admin: bulk revoke / delete by filter.
 - Optional Prometheus-style `/metrics` endpoint (behind the admin token).
+
+## Done
+
+- **Per-link expiry** (0.3.0): 30-day default TTL from creation
+  (`SHORTENER_TTL_DAYS`), a `keepToken` returned at creation + `POST /api/keep`
+  to pin, and keep/expire controls + a "default link TTL" row in the admin panel.
+  The Tab Share "keep this link" button is a follow-up in the extension repo.

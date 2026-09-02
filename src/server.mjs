@@ -2,10 +2,13 @@
  * server.mjs -- the whole HTTP service.
  *
  *   POST /api/shorten     { url, mode?: "code"|"words", ttlDays?: number }
- *                         -> { code, shortUrl, mode, expires }
+ *                         -> { code, shortUrl, mode, expires, keepToken }
  *   GET  /new?url=<enc>&mode=words
  *                         -> text/plain short URL   (drop-in for the Tab Share
- *                            extension's existing "custom endpoint" contract)
+ *                            extension's existing "custom endpoint" contract);
+ *                            the keep token rides in the `X-Keep-Token` header
+ *   POST /api/keep        { code, keepToken, ttlDays? }  -> { code, expires }
+ *                         (pin a link against expiry, or set a new TTL)
  *   GET  /:code           -> 302 (or an HTML meta-refresh for very long targets)
  *   GET  /api/health      -> { ok: true, ... }
  *
@@ -27,6 +30,12 @@ import { KEYSPACE_BITS } from "./words.mjs";
 const store = openStore();
 const limiter = new RateLimiter(config.ratePerMinute);
 setInterval(() => limiter.sweep(), 60_000).unref?.();
+// Actually delete expired rows (not just lazily on read) so the store doesn't
+// accumulate dead links between restarts.
+setInterval(() => {
+  const n = store.sweepExpired();
+  if (n) console.log(`swept ${n} expired link${n === 1 ? "" : "s"}`);
+}, 3600_000).unref?.();
 initAccessLog();
 analytics.initAnalytics();
 
@@ -36,6 +45,7 @@ const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
   "access-control-allow-headers": "content-type",
+  "access-control-expose-headers": "x-keep-token",
   "access-control-max-age": "86400",
   // Chrome Private Network Access: a page on a public origin (or an extension,
   // in newer Chrome) fetching a private address (localhost / LAN) sends a
@@ -194,18 +204,56 @@ async function handleShorten(req, res, urlObj) {
   }
 
   const shortUrl = `${config.base}/${code}`;
+  // The keep token lets the caller pin the link against expiry later
+  // (POST /api/keep). On the plain-text GET /new it rides in a header so the
+  // body stays exactly the short URL.
+  const keepHeader = entry.keep ? { "x-keep-token": entry.keep } : {};
 
   if (req.method === "POST") {
-    return sendJson(res, reused ? 200 : 201, {
-      code,
-      shortUrl,
-      mode: entry.mode,
-      expires: entry.expires || null,
-      reused,
-    });
+    return send(
+      res,
+      reused ? 200 : 201,
+      { "content-type": "application/json; charset=utf-8", ...keepHeader },
+      JSON.stringify({
+        code,
+        shortUrl,
+        mode: entry.mode,
+        expires: entry.expires || null,
+        keepToken: entry.keep || null,
+        reused,
+      }),
+    );
   }
   // Compat contract: bare short URL as text/plain.
-  return sendText(res, 200, shortUrl);
+  return send(res, 200, { "content-type": "text/plain; charset=utf-8", ...keepHeader }, shortUrl);
+}
+
+async function handleKeep(req, res) {
+  if (!limiter.allow(clientIp(req))) {
+    return sendJson(res, 429, { error: "rate limited -- try again in a minute" });
+  }
+  let raw;
+  try {
+    raw = await readBody(req, config.maxBodyBytes);
+  } catch (e) {
+    return sendJson(res, e.status || 400, { error: e.message });
+  }
+  const body = parseBody(raw, req.headers["content-type"]);
+  if (!body || typeof body.code !== "string" || typeof body.keepToken !== "string") {
+    return sendJson(res, 400, { error: "need { code, keepToken }" });
+  }
+  const entry = store.get(body.code);
+  if (!entry) return sendJson(res, 404, { error: "unknown or expired link" });
+  if (!entry.keep || entry.keep !== body.keepToken) {
+    return sendJson(res, 403, { error: "wrong keep token for this link" });
+  }
+  let expires = 0; // default: pin forever
+  if (body.ttlDays != null && body.ttlDays !== "") {
+    const d = Number(body.ttlDays);
+    if (Number.isFinite(d) && d > 0) expires = Date.now() + d * 86400_000;
+  }
+  store.setExpiry(body.code, expires);
+  return sendJson(res, 200, { code: body.code, expires: expires || null });
 }
 
 function handleRedirect(req, res, code) {
@@ -275,6 +323,10 @@ const server = http.createServer(
 
       if (method === "GET" && pathname === "/new") {
         return await handleShorten(req, res, urlObj);
+      }
+
+      if (req.method === "POST" && pathname === "/api/keep") {
+        return await handleKeep(req, res);
       }
 
       if (method === "GET" && (pathname === "/" || pathname === "")) {

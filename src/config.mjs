@@ -100,8 +100,14 @@ export const config = {
    */
   metaRefreshOver: envInt("SHORTENER_META_REFRESH_OVER", 7000),
 
-  /** Default link lifetime in days. 0 = never expires. */
-  ttlDays: envInt("SHORTENER_TTL_DAYS", 0),
+  /**
+   * Default link lifetime in days -- a new short link stops resolving this long
+   * after it was created, unless it is pinned (see POST /api/keep). The full
+   * share link the user also copied is unaffected; only the short code goes.
+   * 0 = links never expire. Existing links keep whatever expiry they were made
+   * with; changing this only affects links created afterwards.
+   */
+  ttlDays: envInt("SHORTENER_TTL_DAYS", 30),
 
   /** Creation requests allowed per IP per rolling minute. 0 disables the limit. */
   ratePerMinute: envInt("SHORTENER_RATE", 30),

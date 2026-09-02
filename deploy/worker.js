@@ -2,10 +2,12 @@
  * worker.js -- the shortener as a Cloudflare Worker + KV.
  *
  * Same contract as the Node server (see ../CONTRACT.md). Differences:
- *   - storage is a KV namespace bound as `LINKS` (value = the long URL,
- *     1-year TTL); no hit counter, no rate limiter (use Cloudflare's).
+ *   - storage is a KV namespace bound as `LINKS` (value = the long URL, expiring
+ *     after SHORTENER_TTL_DAYS -- default 30); no hit counter, no rate limiter
+ *     (use Cloudflare's).
  *   - config comes from Worker vars, not process.env.
- *   - no `/admin` panel and no analytics -- those are Node-server only
+ *   - no `/admin` panel, no analytics, and no `/api/keep` -- those are
+ *     Node-server only. To pin a link on a Worker, re-create it with ttlDays: 0.
  *     (use Cloudflare's own dashboard/analytics for a Worker deployment).
  *
  * Deploy: see ../SELF-HOSTING.md. Wordlists live in ./worker-words.js and are
@@ -18,7 +20,15 @@ const ALPHABET = "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
 const CODE_LEN = 7;
 const MAX_URL_BYTES = 256 * 1024;
 const META_REFRESH_OVER = 7000;
-const KV_TTL_SECONDS = 60 * 60 * 24 * 365;
+// Link lifetime. `SHORTENER_TTL_DAYS` Worker var (default 30) sets it; a POST
+// may pass `ttlDays` per link; 0 = never. KV needs expirationTtl >= 60s.
+// The Worker has no /admin and no keep endpoint -- to pin a link, self-host the
+// Node server, or re-create it with ttlDays: 0.
+const DEFAULT_TTL_DAYS = 30;
+function ttlOpts(days) {
+  if (!(days > 0)) return {}; // never -- KV keeps it forever
+  return { expirationTtl: Math.max(60, Math.round(days * 86400)) };
+}
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -112,7 +122,7 @@ async function urlKey(url) {
   return "u:" + hex;
 }
 
-async function shorten(inputUrl, mode, env) {
+async function shorten(inputUrl, mode, env, ttlDays) {
   const check = validate(inputUrl, env);
   if (!check.ok) return check;
   const m = normalizeMode(mode);
@@ -125,10 +135,16 @@ async function shorten(inputUrl, mode, env) {
     return { ok: true, code: existing, mode: m, shortUrl: `${base}/${existing}`, reused: true };
   }
 
+  const days =
+    ttlDays != null && ttlDays !== ""
+      ? Number(ttlDays) || 0
+      : Number(env.SHORTENER_TTL_DAYS ?? DEFAULT_TTL_DAYS) || 0;
+  const opts = ttlOpts(days);
   const code = await freeCode(m, env);
-  await env.LINKS.put(code, check.url, { expirationTtl: KV_TTL_SECONDS });
-  await env.LINKS.put(uk, code, { expirationTtl: KV_TTL_SECONDS });
-  return { ok: true, code, mode: m, shortUrl: `${base}/${code}`, reused: false };
+  await env.LINKS.put(code, check.url, opts);
+  await env.LINKS.put(uk, code, opts);
+  const expires = days > 0 ? Date.now() + days * 86400_000 : null;
+  return { ok: true, code, mode: m, shortUrl: `${base}/${code}`, expires, reused: false };
 }
 
 function redirectResponse(url) {
@@ -169,9 +185,12 @@ export default {
       if (ct.includes("application/json")) body = await req.json().catch(() => null);
       else body = Object.fromEntries(new URLSearchParams(await req.text()));
       if (!body) return json({ error: "invalid body" }, 400);
-      const r = await shorten(body.url, body.mode, env);
+      const r = await shorten(body.url, body.mode, env, body.ttlDays);
       return r.ok
-        ? json({ code: r.code, shortUrl: r.shortUrl, mode: r.mode, reused: r.reused }, r.reused ? 200 : 201)
+        ? json(
+            { code: r.code, shortUrl: r.shortUrl, mode: r.mode, expires: r.expires ?? null, reused: r.reused },
+            r.reused ? 200 : 201,
+          )
         : json({ error: r.error }, r.status);
     }
 

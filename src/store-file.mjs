@@ -9,16 +9,17 @@
  * Interface shared with store-sqlite.mjs:
  *   has(code) get(code) put(code,{url,mode,ttlDays}) delete(code)
  *   bumpHits(code) findByUrl(url) stats() flushSync() close()
- *   revoke(code) unrevoke(code) list()
+ *   revoke(code) unrevoke(code) list() setExpiry(code,expires) sweepExpired()
  */
 
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config.mjs";
+import { keepToken } from "./codes.mjs";
 
-const SCHEMA = 2; // 2: added `revoked` and `lastHit`
+const SCHEMA = 3; // 2: added `revoked` + `lastHit`; 3: added `keep` (pin token)
 
-/** @typedef {{ url: string, mode: string, created: number, expires: number, hits: number, lastHit: number, revoked: number }} Entry */
+/** @typedef {{ url: string, mode: string, created: number, expires: number, hits: number, lastHit: number, revoked: number, keep: string }} Entry */
 
 export class FileStore {
   /** @param {string} [file] */
@@ -69,6 +70,7 @@ export class FileStore {
         hits: e.hits || 0,
         lastHit: e.lastHit || 0,
         revoked: e.revoked || 0,
+        keep: typeof e.keep === "string" ? e.keep : "",
       };
       this.map.set(code, entry);
       // a revoked link keeps its slug reserved but drops out of dedup
@@ -143,11 +145,36 @@ export class FileStore {
       hits: 0,
       lastHit: 0,
       revoked: 0,
+      keep: keepToken(),
     };
     this.map.set(code, entry);
     this._index(code, entry);
     this._scheduleFlush();
     return entry;
+  }
+
+  /** @param {string} code @param {number} expires -- epoch ms, or 0 to pin forever */
+  setExpiry(code, expires) {
+    const e = this.map.get(code);
+    if (!e) return false;
+    e.expires = expires > 0 ? expires : 0;
+    this._scheduleFlush();
+    return true;
+  }
+
+  /** Delete every expired row. @returns {number} how many. */
+  sweepExpired() {
+    const now = Date.now();
+    let n = 0;
+    for (const [code, e] of this.map) {
+      if (e.expires && e.expires < now) {
+        this.map.delete(code);
+        this._deindex(code, e);
+        n++;
+      }
+    }
+    if (n) this._scheduleFlush();
+    return n;
   }
 
   /** @param {string} code -- permanent removal (frees the slug). */

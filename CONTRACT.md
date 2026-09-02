@@ -15,7 +15,7 @@ Request body, `application/json` (or `application/x-www-form-urlencoded`):
 |---|---|---|
 | `url` | yes | the full `https://<viewer>/#<token>` link, fragment included |
 | `mode` | no | `"code"` (default) or `"words"` |
-| `ttlDays` | no | overrides `SHORTENER_TTL_DAYS`; `0` = never expires |
+| `ttlDays` | no | overrides `SHORTENER_TTL_DAYS` (default `30`); `0` = never expires |
 
 Response `201` (a fresh code) or `200` (an existing one -- see dedup):
 
@@ -23,9 +23,27 @@ Response `201` (a fresh code) or `200` (an existing one -- see dedup):
 { "code": "swift-amber-otter",
   "shortUrl": "https://s.example.com/swift-amber-otter",
   "mode": "words",
-  "expires": null,
+  "expires": 1788800330708,
+  "keepToken": "k3mApq7Rn2tWvYbHjLcDgF",
   "reused": false }
 ```
+
+`expires` is an epoch-ms timestamp, or `null` when the link never expires.
+`keepToken` is a per-link secret -- keep it if you want to pin the link later
+(a `reused` response carries the original link's token).
+
+### Pinning -- `POST /api/keep`
+
+| field | required | |
+|---|---|---|
+| `code` | yes | the short code to keep |
+| `keepToken` | yes | the token returned when the code was created |
+| `ttlDays` | no | omitted or `0` pins the link forever; a positive value sets a fresh window from now |
+
+Response `200 { "code": "...", "expires": <epoch-ms or null> }`. Errors: `400`
+missing fields, `403` wrong token, `404` unknown or already-expired code,
+`429` rate limited. The Cloudflare Worker port has no `/api/keep` -- to pin a
+link there, re-create it with `ttlDays: 0`.
 
 **Dedup.** Shortening a URL that already has a live code returns that code with
 `"reused": true` and status `200`. The stored code and its style are returned
@@ -39,7 +57,9 @@ allowlist, `413` url over `SHORTENER_MAX_URL`, `429` rate limited,
 
 This is the shape the Tab Share extension's **custom endpoint** field already
 produces (`<endpoint>` + `encodeURIComponent(link)`). Returns the bare short
-URL as `text/plain`, `200`. Same validation and errors (as plain text).
+URL as `text/plain`, `200`. Same validation and errors (as plain text). The
+keep token rides in the `X-Keep-Token` response header (exposed via
+`Access-Control-Expose-Headers`) so the body stays exactly the short URL.
 
 > The long link rides in the query string here, so the request line can be
 > 10 KB+. This server raises Node's `maxHeaderSize` to accept it; a reverse

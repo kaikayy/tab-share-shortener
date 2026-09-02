@@ -253,6 +253,55 @@ test("store persists to disk", async () => {
   assert.equal(disk.links[code].url, target);
 });
 
+test("POST /api/shorten applies the default 30-day TTL and returns a keepToken", async () => {
+  const r = await api("POST", "/api/shorten", { json: { url: `${VIEWER}#ttl_default` } });
+  assert.equal(r.status, 201);
+  const body = JSON.parse(r.text);
+  assert.match(body.keepToken, /^[2-9a-km-zA-HJ-NP-Z]{22}$/);
+  const days = (body.expires - Date.now()) / 86400_000;
+  assert.ok(days > 29 && days < 31, `expected ~30 days, got ${days}`);
+});
+
+test("GET /new carries the keep token in the X-Keep-Token header", async () => {
+  const target = `${VIEWER}#keep_header_probe`;
+  const res = await fetch(`${BASE}/new?url=${encodeURIComponent(target)}`, { redirect: "manual" });
+  assert.equal(res.status, 200);
+  const tok = res.headers.get("x-keep-token");
+  assert.match(tok, /^[2-9a-km-zA-HJ-NP-Z]{22}$/);
+  assert.match(res.headers.get("access-control-expose-headers") || "", /x-keep-token/);
+});
+
+test("POST /api/keep pins a link forever with the right token", async () => {
+  const target = `${VIEWER}#keep_pin_probe`;
+  const mk = JSON.parse((await api("POST", "/api/shorten", { json: { url: target } })).text);
+  assert.ok(mk.expires > Date.now());
+
+  const bad = await api("POST", "/api/keep", { json: { code: mk.code, keepToken: "wrongwrongwrongwrong12" } });
+  assert.equal(bad.status, 403);
+
+  const miss = await api("POST", "/api/keep", { json: { code: "no-such-code", keepToken: mk.keepToken } });
+  assert.equal(miss.status, 404);
+
+  const ok = await api("POST", "/api/keep", { json: { code: mk.code, keepToken: mk.keepToken } });
+  assert.equal(ok.status, 200);
+  assert.equal(JSON.parse(ok.text).expires, null); // pinned
+  assert.equal(store.get(mk.code).expires, 0);
+});
+
+test("POST /api/keep with ttlDays re-sets a finite window", async () => {
+  const target = `${VIEWER}#keep_reset_probe`;
+  const mk = JSON.parse((await api("POST", "/api/shorten", { json: { url: target } })).text);
+  const ok = await api("POST", "/api/keep", { json: { code: mk.code, keepToken: mk.keepToken, ttlDays: 7 } });
+  assert.equal(ok.status, 200);
+  const days = (JSON.parse(ok.text).expires - Date.now()) / 86400_000;
+  assert.ok(days > 6 && days < 8, `expected ~7 days, got ${days}`);
+});
+
+test("POST /api/keep needs both fields", async () => {
+  const r = await api("POST", "/api/keep", { json: { code: "x" } });
+  assert.equal(r.status, 400);
+});
+
 /* --------------------------- admin panel --------------------------- */
 
 const admin = (method, pathname, opts = {}) =>
@@ -310,6 +359,37 @@ test("admin: the link list carries the target host, not the destination URL", as
   const rev = JSON.parse((await admin("GET", "/admin/api/links/host-probe/url")).text);
   assert.equal(rev.url, `${VIEWER}#host_only_probe`);
   assert.equal((await admin("GET", "/admin/api/links/nope-nope/url")).status, 404);
+});
+
+test("admin: overview reports the default link TTL", async () => {
+  const ov = JSON.parse((await admin("GET", "/admin/api/overview")).text);
+  assert.equal(ov.ops.defaultTtlDays, 30);
+});
+
+test("admin: create with ttlDays, then keep / expire a link", async () => {
+  const mk = await admin("POST", "/admin/api/links", {
+    json: { url: `${VIEWER}#admin_ttl`, slug: "adm-ttl", ttlDays: 5 },
+  });
+  assert.equal(mk.status, 201);
+  const days = (JSON.parse(mk.text).expires - Date.now()) / 86400_000;
+  assert.ok(days > 4 && days < 6, `expected ~5 days, got ${days}`);
+  const row = JSON.parse((await admin("GET", "/admin/api/links?q=adm-ttl")).text).links[0];
+  assert.ok(row.expires > Date.now());
+  assert.equal(row.keep, undefined); // the browsable list never carries keep tokens
+
+  // operator "keep" pins with no token
+  const kept = await admin("POST", "/admin/api/links/adm-ttl/keep");
+  assert.equal(JSON.parse(kept.text).ok, true);
+  assert.equal(store.get("adm-ttl").expires, 0);
+
+  // operator "expire" in N days
+  const exp = await admin("POST", "/admin/api/links/adm-ttl/expire", { json: { days: 2 } });
+  const ed = (JSON.parse(exp.text).expires - Date.now()) / 86400_000;
+  assert.ok(ed > 1 && ed < 3, `expected ~2 days, got ${ed}`);
+
+  // expire now (days: 0) -> the link stops resolving
+  await admin("POST", "/admin/api/links/adm-ttl/expire", { json: { days: 0 } });
+  assert.equal((await api("GET", "/adm-ttl")).status, 404);
 });
 
 test("admin: editing the host allowlist takes effect immediately", async () => {

@@ -96,11 +96,20 @@ independent testing as of 2026 and can change. Full detail for this one is in
 
 | Route | | |
 |---|---|---|
-| `POST /api/shorten` | `{ url, mode?, ttlDays? }` | `201 { code, shortUrl, mode, expires }` |
-| `GET /new?url=<enc>&mode=` | compat shim | `200` `text/plain` short URL |
+| `POST /api/shorten` | `{ url, mode?, ttlDays? }` | `201 { code, shortUrl, mode, expires, keepToken }` |
+| `POST /api/keep` | `{ code, keepToken, ttlDays? }` | `200 { code, expires }` -- pin a link (or re-set its TTL) |
+| `GET /new?url=<enc>&mode=` | compat shim | `200` `text/plain` short URL; keep token in the `X-Keep-Token` header |
 | `GET /:code` | | `302` to the target (HTML meta-refresh if the target is very long) |
 | `GET /api/health` | | `200 { ok, store, allowedHosts, ... }` |
 | `/admin`, `/admin/api/*` | `Bearer` / cookie token | panel + JSON API; `404` when `SHORTENER_ADMIN_TOKEN` is unset |
+
+**How long a short link lives.** By default a new short code stops resolving
+**30 days** after it was created (`SHORTENER_TTL_DAYS`). The full share link the
+caller also copied is never affected -- only the short code is forgotten. To keep
+one for good, `POST /api/keep` with the `keepToken` you got back at creation
+(`ttlDays: 0` pins it; a positive `ttlDays` sets a fresh window). An operator can
+also pin or expire any link from the admin panel. Set `SHORTENER_TTL_DAYS=0` to
+make links never expire by default.
 
 See [`CONTRACT.md`](CONTRACT.md) for the exact rules a response/redirect must
 follow, and [`SELF-HOSTING.md`](SELF-HOSTING.md) to deploy.
@@ -119,7 +128,7 @@ The ones you'll actually set:
 | `SHORTENER_PORT` / `SHORTENER_HOST` | `8779` / `127.0.0.1` | bind address |
 | `SHORTENER_STORE` | `data/links.json` | store file path |
 | `SHORTENER_STORE_BACKEND` | infer from path | `file` or `sqlite` (Node 24+) |
-| `SHORTENER_TTL_DAYS` | `0` | default link lifetime (`0` = forever) |
+| `SHORTENER_TTL_DAYS` | `30` | default link lifetime in days (`0` = forever); per-link override via `ttlDays` / `POST /api/keep` |
 | `SHORTENER_RATE` | `30` | creates per IP per minute (`0` = off) |
 | `SHORTENER_TRUST_PROXY` | off | set `1` behind a reverse proxy to read `X-Forwarded-For` |
 | `SHORTENER_ADMIN_TOKEN` | off | set a long random string to enable `/admin`; unset = the tree 404s |

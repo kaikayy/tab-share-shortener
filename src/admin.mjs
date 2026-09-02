@@ -150,6 +150,7 @@ function ops(store) {
     backend: s.backend,
     base: config.base,
     links: { total: s.total, revoked: s.revoked || 0, expiring: s.expiring || 0 },
+    defaultTtlDays: config.ttlDays,
     storeBytes: storeSize(),
     uptimeSec: Math.round((Date.now() - BOOT) / 1000),
     analyticsEnabled: config.analyticsEnabled,
@@ -209,14 +210,14 @@ export async function handleAdmin(req, res, urlObj, { store }) {
       // The list never carries destination URLs -- only the target host. Seeing
       // the full URL (i.e. the pages someone bundled) is a deliberate per-link
       // reveal: GET /admin/api/links/<code>/url
-      let rows = store.list().map(({ url, ...rest }) => {
+      let rows = store.list().map(({ url, keep, ...rest }) => {
         let host = "?";
         try {
           host = new URL(url).host;
         } catch {
           /* keep "?" */
         }
-        return { ...rest, host };
+        return { ...rest, host }; // no `url`, no per-link `keep` token
       });
       if (q) rows = rows.filter((r) => r.code.toLowerCase().includes(q) || r.host.toLowerCase().includes(q));
       return sendJson(res, 200, { total: rows.length, links: rows.slice(0, limit) }), true;
@@ -227,7 +228,7 @@ export async function handleAdmin(req, res, urlObj, { store }) {
       return createLink(res, store, body), true;
     }
 
-    const linkOp = /^\/admin\/api\/links\/([^/]+)(?:\/(revoke|unrevoke|stats|url))?$/.exec(p);
+    const linkOp = /^\/admin\/api\/links\/([^/]+)(?:\/(revoke|unrevoke|stats|url|keep|expire))?$/.exec(p);
     if (linkOp) {
       const code = decodeURIComponent(linkOp[1]);
       const action = linkOp[2];
@@ -246,6 +247,17 @@ export async function handleAdmin(req, res, urlObj, { store }) {
       }
       if (method === "POST" && action === "unrevoke") {
         return sendJson(res, 200, { ok: store.unrevoke(code) }), true;
+      }
+      if (method === "POST" && action === "keep") {
+        // operator override -- pin, no keep token needed
+        return sendJson(res, 200, { ok: store.setExpiry(code, 0) }), true;
+      }
+      if (method === "POST" && action === "expire") {
+        const body = await readBody(req);
+        const d = Number(body.days);
+        const expires = Number.isFinite(d) && d > 0 ? Date.now() + d * 86400_000 : Date.now() - 1;
+        const ok = store.setExpiry(code, expires);
+        return sendJson(res, 200, { ok, expires: expires > Date.now() ? expires : null }), true;
       }
       if (method === "DELETE" && !action) {
         return sendJson(res, 200, { ok: store.delete(code) }), true;
@@ -403,6 +415,7 @@ svg .ax{stroke:var(--line)}svg .h{fill:var(--brand)}svg .c{fill:var(--accent)}
 const $=s=>document.querySelector(s), api=(u,o)=>fetch('/admin/api/'+u,o).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtN=n=>n.toLocaleString(), ago=t=>{if(!t)return 'never';const s=(Date.now()-t)/1e3;for(const[u,d]of[['d',86400],['h',3600],['m',60]])if(s>=d)return Math.floor(s/d)+u+' ago';return 'just now'};
+const until=t=>{if(!t)return 'never';const s=(t-Date.now())/1e3;if(s<=0)return 'expired';for(const[u,d]of[['d',86400],['h',3600],['m',60]])if(s>=d)return 'in '+Math.floor(s/d)+u;return 'soon'};
 const kib=b=>b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';
 let range=30, tab='overview';
 $('#range').onchange=e=>{range=+e.target.value;render()};
@@ -451,6 +464,7 @@ async function renderOverview(v){
     tr('version',o.version)+tr('store backend',o.backend)+tr('store size',kib(o.storeBytes))+
     tr('public base',o.base)+tr('uptime',Math.floor(o.uptimeSec/3600)+'h '+Math.floor(o.uptimeSec%3600/60)+'m')+
     tr('hit counting',o.countHits?'on':'off')+tr('analytics',o.analyticsEnabled?'on':'off')+
+    tr('default link TTL',o.defaultTtlDays>0?o.defaultTtlDays+' days (SHORTENER_TTL_DAYS)':'never')+
     tr('allowlist editable',o.hostsEditable?'yes':'no (set SHORTENER_HOSTS_FILE)')+
     tr('last backup',o.lastBackup?ago(o.lastBackup):'unknown')+'</table></div>'+
     (d.rejects.length?'<div class="card"><h2>why links were rejected</h2>'+bars(d.rejects.map(r=>({k:r.reason,v:r.count})),r=>esc(r.k))+'</div>':'');
@@ -468,6 +482,7 @@ async function renderLinks(v){
     '<input id="nu" placeholder="https://your-viewer/...#token" style="flex:1;min-width:220px">'+
     '<input id="ns" placeholder="slug (optional)" size="12">'+
     '<select id="nm"><option value="code">code</option><option value="words">words</option></select>'+
+    '<input id="nt" type="number" min="0" placeholder="TTL days" title="0 = never; blank = server default" size="8" style="width:5rem">'+
     '<button class="act" id="mk">create</button></div><div id="mkmsg"></div>'+
     '<div class="row" style="margin-bottom:.6rem"><input id="lq" placeholder="filter code or host" style="flex:1">'+
     '<button class="act" id="export">export JSON</button>'+
@@ -489,22 +504,26 @@ async function renderLinks(v){
     if(q)rows=rows.filter(r=>r.code.toLowerCase().includes(q)||(r.host||'').toLowerCase().includes(q));
     rows.sort((a,b)=>{const x=a[lsort.k],y=b[lsort.k];return (x>y?1:x<y?-1:0)*lsort.d});
     $('#ltab').innerHTML='<table><thead><tr>'+
-      ['code','host','mode','hits','lastHit','created','revoked',''].map(h=>h?'<th data-k="'+h+'">'+h+'</th>':'<th></th>').join('')+
+      ['code','host','mode','hits','lastHit','created','expires','revoked',''].map(h=>h?'<th data-k="'+h+'">'+h+'</th>':'<th></th>').join('')+
       '</tr></thead><tbody>'+rows.map(r=>'<tr class="'+(r.revoked?'rv':'')+'">'+
       '<td><code>'+esc(r.code)+'</code></td>'+
       '<td>'+tgtCell(r)+'</td><td>'+r.mode+'</td><td>'+fmtN(r.hits)+'</td>'+
       '<td class="mut">'+(r.lastHit?ago(r.lastHit):'--')+'</td><td class="mut">'+ago(r.created)+'</td>'+
+      '<td class="mut">'+(r.expires?until(r.expires):'never')+'</td>'+
       '<td class="mut">'+(r.revoked?ago(r.revoked):'')+'</td>'+
       '<td class="row">'+(r.revoked
         ?'<button class="act" data-un="'+esc(r.code)+'">restore</button>'
         :'<button class="act d" data-rv="'+esc(r.code)+'">revoke</button>')+
+      (r.revoked?'':(r.expires
+        ?'<button class="act" data-keep="'+esc(r.code)+'">keep</button>'
+        :'<button class="act" data-expire="'+esc(r.code)+'">expire</button>'))+
       '<button class="act d" data-del="'+esc(r.code)+'">del</button></td></tr>').join('')+
       '</tbody></table><p class="mut">'+rows.length+' shown</p>';
   };
   draw();
   $('#ltab').onclick=async e=>{
     const t=e.target;
-    const rev=t.dataset.reveal,hide=t.dataset.hide,rv=t.dataset.rv,un=t.dataset.un,del=t.dataset.del;
+    const rev=t.dataset.reveal,hide=t.dataset.hide,rv=t.dataset.rv,un=t.dataset.un,del=t.dataset.del,keep=t.dataset.keep,exp=t.dataset.expire;
     try{
       if(rev){
         revealed.add(rev);draw();
@@ -515,6 +534,12 @@ async function renderLinks(v){
       if(hide){revealed.delete(hide);draw();return;}
       if(rv){await api('links/'+encodeURIComponent(rv)+'/revoke',{method:'POST'});row(rv).revoked=Date.now()}
       else if(un){await api('links/'+encodeURIComponent(un)+'/unrevoke',{method:'POST'});row(un).revoked=0}
+      else if(keep){await api('links/'+encodeURIComponent(keep)+'/keep',{method:'POST'});row(keep).expires=0}
+      else if(exp){
+        const days=prompt('Expire this link in how many days? (0 = now)','0');if(days===null)return;
+        const r=await api('links/'+encodeURIComponent(exp)+'/expire',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({days:+days})});
+        row(exp).expires=r.expires||Date.now()-1;
+      }
       else if(del){if(!confirm('Delete '+del+' permanently?'))return;await api('links/'+encodeURIComponent(del),{method:'DELETE'});d.links=d.links.filter(r=>r.code!==del)}
       else return;
       draw();
@@ -529,11 +554,13 @@ async function renderLinks(v){
   };
   $('#mk').onclick=async()=>{
     try{
-      const r=await api('links',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({url:$('#nu').value,slug:$('#ns').value,mode:$('#nm').value})});
-      $('#mkmsg').innerHTML='<div class="msg ok">'+esc(r.shortUrl)+(r.reused?' (existing)':'')+'</div>';
-      d.links.unshift({code:r.code,host:hostOf($('#nu').value),mode:r.mode||$('#nm').value,hits:0,lastHit:0,created:Date.now(),revoked:0});
-      $('#nu').value=$('#ns').value='';draw();
+      const tt=$('#nt').value.trim();
+      const payload={url:$('#nu').value,slug:$('#ns').value,mode:$('#nm').value};
+      if(tt!=='')payload.ttlDays=+tt;
+      const r=await api('links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+      $('#mkmsg').innerHTML='<div class="msg ok">'+esc(r.shortUrl)+(r.reused?' (existing)':'')+(r.expires?' &middot; expires '+new Date(r.expires).toISOString().slice(0,10):'')+'</div>';
+      d.links.unshift({code:r.code,host:hostOf($('#nu').value),mode:r.mode||$('#nm').value,hits:0,lastHit:0,created:Date.now(),expires:r.expires||0,revoked:0});
+      $('#nu').value=$('#ns').value=$('#nt').value='';draw();
     }catch(err){$('#mkmsg').innerHTML='<div class="msg err">'+esc(err.message)+'</div>'}
   };
   $('#purge').onclick=async()=>{

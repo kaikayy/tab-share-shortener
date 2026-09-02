@@ -9,16 +9,22 @@ import worker from "../deploy/worker.js";
 
 const VIEWER = "https://kaikayy.github.io/multi-link-share/";
 
-function makeEnv() {
+function makeEnv(extra = {}) {
   const map = new Map();
+  const opts = new Map();
   return {
     SHORTENER_BASE: "https://s.example.com",
     SHORTENER_HOSTS: "kaikayy.github.io",
     LINKS: {
       get: async (k) => (map.has(k) ? map.get(k) : null),
-      put: async (k, v) => void map.set(k, v),
+      put: async (k, v, o) => {
+        map.set(k, v);
+        opts.set(k, o || {});
+      },
     },
     _map: map,
+    _opts: opts,
+    ...extra,
   };
 }
 
@@ -117,6 +123,36 @@ test("collision falls back to a suffixed slug", async () => {
   for (const a of ["swift", "amber"]) for (const b of ["otter", "cedar"]) env._map.set(`${a}-${a}-${b}`, "x");
   const b = await (await worker.fetch(req("/api/shorten", jbody({ url: `${VIEWER}#x`, mode: "words" })), env)).json();
   assert.match(b.code, /^[a-z]+-[a-z]+-[a-z]+(-[2-9a-km-zA-HJ-NP-Z]{2})?$/);
+});
+
+test("default 30-day TTL: expires in body + KV expirationTtl", async () => {
+  const env = makeEnv();
+  const b = await (await worker.fetch(req("/api/shorten", jbody({ url: `${VIEWER}#ttl_default` })), env)).json();
+  const days = (b.expires - Date.now()) / 86400_000;
+  assert.ok(days > 29 && days < 31, `expected ~30 days, got ${days}`);
+  const ttl = env._opts.get(b.code).expirationTtl;
+  assert.ok(Math.abs(ttl - 30 * 86400) < 5, `expirationTtl ${ttl}`);
+});
+
+test("ttlDays: 0 -> never expires (no expirationTtl, expires:null)", async () => {
+  const env = makeEnv();
+  const b = await (await worker.fetch(req("/api/shorten", jbody({ url: `${VIEWER}#ttl_never`, ttlDays: 0 })), env)).json();
+  assert.equal(b.expires, null);
+  assert.deepEqual(env._opts.get(b.code), {});
+});
+
+test("per-link ttlDays overrides the default", async () => {
+  const env = makeEnv();
+  const b = await (await worker.fetch(req("/api/shorten", jbody({ url: `${VIEWER}#ttl_7`, ttlDays: 7 })), env)).json();
+  const ttl = env._opts.get(b.code).expirationTtl;
+  assert.ok(Math.abs(ttl - 7 * 86400) < 5, `expirationTtl ${ttl}`);
+});
+
+test("SHORTENER_TTL_DAYS var sets the default", async () => {
+  const env = makeEnv({ SHORTENER_TTL_DAYS: "3" });
+  const b = await (await worker.fetch(req("/api/shorten", jbody({ url: `${VIEWER}#ttl_var` })), env)).json();
+  const ttl = env._opts.get(b.code).expirationTtl;
+  assert.ok(Math.abs(ttl - 3 * 86400) < 5, `expirationTtl ${ttl}`);
 });
 
 let failed = 0;

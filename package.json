@@ -1,6 +1,6 @@
 {
   "name": "tab-share-shortener",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "First-party link shortener for Tab Share -- accepts share links of any length, two code modes (random / readable words), no account, self-hostable.",
   "license": "AGPL-3.0-only",
   "private": true,

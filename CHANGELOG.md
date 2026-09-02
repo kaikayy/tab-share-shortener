@@ -2,6 +2,29 @@
 
 Notable changes. Dates are `YYYY-MM-DD`.
 
+## [0.3.0] - 2026-09-02
+
+### Added
+
+- **Per-link expiry.** A new short code now stops resolving `SHORTENER_TTL_DAYS`
+  days after it was created -- default **30** (was: never). The full share link
+  the user also copied is untouched; only the short code is forgotten. Expired
+  rows are dropped lazily on read, on store load, and by an hourly sweep. Set
+  `SHORTENER_TTL_DAYS=0` to keep the old forever behaviour.
+- **`keepToken` + `POST /api/keep`.** `POST /api/shorten` returns a per-link
+  `keepToken` (on `GET /new` it rides in the `X-Keep-Token` header). `POST
+  /api/keep { code, keepToken, ttlDays? }` pins the link (`ttlDays` omitted or
+  `0`) or sets a fresh window. Wrong token -> 403.
+- **Admin panel:** an `expires` column with keep / expire buttons per link, a
+  TTL field on the create form, and a "default link TTL" row in the overview.
+  Operator keep/expire needs no keep token.
+- Store backends gain `setExpiry(code, expires)` and `sweepExpired()`; the file
+  store schema is now 3 (adds the `keep` token). Existing stores migrate in
+  place.
+- Cloudflare Worker: KV `expirationTtl` from `SHORTENER_TTL_DAYS` (default 30) or
+  a per-request `ttlDays`; the response carries `expires`. The Worker still has
+  no `/admin` or `/api/keep` -- re-create with `ttlDays: 0` to pin.
+
 ## [0.2.2] - 2026-09-02
 
 ### Added

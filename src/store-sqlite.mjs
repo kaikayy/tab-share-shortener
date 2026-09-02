@@ -11,17 +11,18 @@
  * Interface shared with store-file.mjs:
  *   has(code) get(code) put(code,{url,mode,ttlDays}) delete(code)
  *   bumpHits(code) findByUrl(url) stats() flushSync() close()
- *   revoke(code) unrevoke(code) list()
+ *   revoke(code) unrevoke(code) list() setExpiry(code,expires) sweepExpired()
  */
 
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config.mjs";
+import { keepToken } from "./codes.mjs";
 
-/** @typedef {{ url: string, mode: string, created: number, expires: number, hits: number, lastHit: number, revoked: number }} Entry */
+/** @typedef {{ url: string, mode: string, created: number, expires: number, hits: number, lastHit: number, revoked: number, keep: string }} Entry */
 
-const SELECT_COLS = "url, mode, created, expires, hits, last_hit AS lastHit, revoked";
+const SELECT_COLS = "url, mode, created, expires, hits, last_hit AS lastHit, revoked, keep";
 
 export class SqliteStore {
   /** @param {string} [file] */
@@ -42,11 +43,16 @@ export class SqliteStore {
         expires  INTEGER NOT NULL DEFAULT 0,
         hits     INTEGER NOT NULL DEFAULT 0,
         last_hit INTEGER NOT NULL DEFAULT 0,
-        revoked  INTEGER NOT NULL DEFAULT 0
+        revoked  INTEGER NOT NULL DEFAULT 0,
+        keep     TEXT NOT NULL DEFAULT ''
       )
     `);
-    // migrate a schema-1 table in place (ALTER throws if the column exists)
-    for (const col of ["last_hit INTEGER NOT NULL DEFAULT 0", "revoked INTEGER NOT NULL DEFAULT 0"]) {
+    // migrate an older table in place (ALTER throws if the column exists)
+    for (const col of [
+      "last_hit INTEGER NOT NULL DEFAULT 0",
+      "revoked INTEGER NOT NULL DEFAULT 0",
+      "keep TEXT NOT NULL DEFAULT ''",
+    ]) {
       try {
         this.db.exec(`ALTER TABLE links ADD COLUMN ${col}`);
       } catch {
@@ -62,12 +68,13 @@ export class SqliteStore {
     );
     this._list = this.db.prepare(`SELECT code, ${SELECT_COLS} FROM links ORDER BY created DESC`);
     this._put = this.db.prepare(
-      "INSERT OR REPLACE INTO links (code, url, mode, created, expires, hits, last_hit, revoked) VALUES (?, ?, ?, ?, ?, 0, 0, 0)",
+      "INSERT OR REPLACE INTO links (code, url, mode, created, expires, hits, last_hit, revoked, keep) VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?)",
     );
     this._del = this.db.prepare("DELETE FROM links WHERE code = ?");
     this._bump = this.db.prepare("UPDATE links SET hits = hits + 1, last_hit = ? WHERE code = ?");
     this._revoke = this.db.prepare("UPDATE links SET revoked = ? WHERE code = ? AND revoked = 0");
     this._unrevoke = this.db.prepare("UPDATE links SET revoked = 0 WHERE code = ? AND revoked != 0");
+    this._setExpiry = this.db.prepare("UPDATE links SET expires = ? WHERE code = ?");
     this._count = this.db.prepare(
       "SELECT COUNT(*) AS n, SUM(expires > 0 AND revoked = 0) AS e, SUM(revoked != 0) AS r FROM links",
     );
@@ -103,6 +110,7 @@ export class SqliteStore {
       hits: row.hits,
       lastHit: row.lastHit || 0,
       revoked: row.revoked || 0,
+      keep: row.keep || "",
     };
   }
 
@@ -126,8 +134,19 @@ export class SqliteStore {
     const days = ttlDays == null ? config.ttlDays : ttlDays;
     const now = Date.now();
     const expires = days > 0 ? now + days * 86400_000 : 0;
-    this._put.run(code, url, mode, now, expires);
-    return { url, mode, created: now, expires, hits: 0, lastHit: 0, revoked: 0 };
+    const keep = keepToken();
+    this._put.run(code, url, mode, now, expires, keep);
+    return { url, mode, created: now, expires, hits: 0, lastHit: 0, revoked: 0, keep };
+  }
+
+  /** @param {string} code @param {number} expires -- epoch ms, or 0 to pin forever */
+  setExpiry(code, expires) {
+    return this._setExpiry.run(expires > 0 ? expires : 0, code).changes > 0;
+  }
+
+  /** Delete every expired row. @returns {number} how many. */
+  sweepExpired() {
+    return this._sweep.run(Date.now()).changes || 0;
   }
 
   /** @param {string} code -- permanent removal (frees the slug). */

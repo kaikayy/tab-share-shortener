@@ -1,6 +1,6 @@
 # Privacy -- Tab Share shortener
 
-_Last updated: 2026-09-02 (0.2.2)_
+_Last updated: 2026-09-02 (0.3.0)_
 
 This covers the **first-party instance at `s.kaikay.de`**, run by the Tab Share
 author. If you [self-host](SELF-HOSTING.md) the shortener, you are the operator
@@ -21,12 +21,25 @@ receives nothing.
   full on the server (it has to be, to redirect), so the operator *can* read it
   if they choose to. Making an instance where the operator genuinely cannot is
   on the [roadmap](ROADMAP.md).
-- The code's **style** (`code` or `words`), its creation time, and an optional
-  expiry.
+- The code's **style** (`code` or `words`), its creation time, and an expiry.
 - Nothing about who created it: no account, no IP, no cookie.
 
 Identical URLs are de-duplicated, so re-shortening the same link returns the
 same code rather than storing it twice.
+
+### How long the stored URL is kept
+
+By default a short link -- and the collection URL stored with it -- is
+**forgotten 30 days after it was created**. The redirect stops working and the
+row is deleted. This is deliberate data-minimisation: an unused link should not
+keep a copy of your page list on the server indefinitely. The full share link
+you also copied is unaffected and keeps working.
+
+If you want a short link to last, the extension can pin it (it holds a per-link
+`keepToken` handed back at creation and calls `POST /api/keep`). A pinned link
+is kept until you delete it. The operator can also pin or expire any link from
+the admin panel. On a self-hosted instance, `SHORTENER_TTL_DAYS` sets the window
+(or `0` to keep links forever).
 
 ## What is recorded when a short link is opened
 
@@ -90,6 +103,7 @@ runs with this **off**.
 | `SHORTENER_ANALYTICS=0` | no redirect analytics at all (no counts, no referrer/browser tallies, no event list) |
 | `SHORTENER_COUNT_HITS=0` | keep analytics off the read path entirely; no per-link hit counter |
 | `SHORTENER_ANALYTICS_DAYS=N` | change the retention window from 365 days |
+| `SHORTENER_TTL_DAYS=N` | how long a stored link is kept before it is deleted (default 30; `0` = forever) |
 | `SHORTENER_LOG` unset | no per-request access log (the default) |
 | `SHORTENER_ADMIN_TOKEN` unset | the `/admin` panel is disabled and returns 404 |
 

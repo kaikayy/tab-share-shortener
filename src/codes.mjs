@@ -72,4 +72,15 @@ export function looksLikeCode(code) {
   return typeof code === "string" && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,79})$/.test(code);
 }
 
+/**
+ * An unguessable per-link secret, handed back at creation. Whoever holds it can
+ * pin the link against expiry (POST /api/keep). 22 chars of the same
+ * unambiguous alphabet, ~128 bits.
+ */
+export function keepToken() {
+  let out = "";
+  for (let i = 0; i < 22; i++) out += ALPHABET[randomInt(ALPHABET.length)];
+  return out;
+}
+
 export { ALPHABET };

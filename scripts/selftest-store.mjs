@@ -105,6 +105,50 @@ function suite(label, Ctor, ext) {
     s.close();
   });
 
+  test(`[${label}] put returns a keepToken; setExpiry pins and re-sets`, () => {
+    const s = fresh();
+    const e = s.put("kt", { url: "https://kaikayy.github.io/k#1", mode: "code", ttlDays: 30 });
+    assert.match(e.keep, /^[0-9a-zA-Z]{22}$/);
+    assert.ok(e.expires > Date.now());
+    assert.equal(s.get("kt").keep, e.keep);
+    // pin forever
+    assert.equal(s.setExpiry("kt", 0), true);
+    assert.equal(s.get("kt").expires, 0);
+    // re-set a fresh window
+    const soon = Date.now() + 86400_000;
+    assert.equal(s.setExpiry("kt", soon), true);
+    assert.equal(s.get("kt").expires, soon);
+    assert.equal(s.setExpiry("nope", 0), false);
+    s.close();
+  });
+
+  test(`[${label}] sweepExpired deletes only past-due rows`, () => {
+    const s = fresh();
+    s.put("live", { url: "https://kaikayy.github.io/s#1", mode: "code", ttlDays: 30 });
+    s.put("dead", { url: "https://kaikayy.github.io/s#2", mode: "code" });
+    s.setExpiry("dead", Date.now() - 1000);
+    s.put("kept", { url: "https://kaikayy.github.io/s#3", mode: "code" });
+    s.setExpiry("kept", 0); // pinned -- never swept
+    assert.equal(s.sweepExpired(), 1);
+    assert.equal(s.has("dead"), false);
+    assert.ok(s.has("live"));
+    assert.ok(s.has("kept"));
+    assert.equal(s.sweepExpired(), 0); // idempotent
+    s.close();
+  });
+
+  test(`[${label}] keepToken survives reopen`, () => {
+    const p = path.join(tmpdir(), `tss-store-${label}-${process.pid}-keep.${ext}`);
+    paths.push(p);
+    const s1 = new Ctor(p);
+    const e = s1.put("kp", { url: "https://kaikayy.github.io/kp#1", mode: "code" });
+    s1.flushSync();
+    s1.close();
+    const s2 = new Ctor(p);
+    assert.equal(s2.get("kp").keep, e.keep);
+    s2.close();
+  });
+
   test(`[${label}] survives reopen`, () => {
     const p = path.join(tmpdir(), `tss-store-${label}-${process.pid}-reopen.${ext}`);
     paths.push(p);

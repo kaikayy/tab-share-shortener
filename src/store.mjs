@@ -10,7 +10,7 @@
  * Both backends implement the same surface:
  *   has(code) get(code) put(code,{url,mode,ttlDays}) delete(code)
  *   bumpHits(code) findByUrl(url) revoke(code) unrevoke(code) list()
- *   stats() flushSync() close()
+ *   setExpiry(code,expires) sweepExpired() stats() flushSync() close()
  * -- see store-file.mjs for the contract.
  */
 
