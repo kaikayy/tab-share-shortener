@@ -2,6 +2,18 @@
 
 Notable changes. Dates are `YYYY-MM-DD`.
 
+## [Unreleased]
+
+### Changed
+
+- **Payload ceiling raised to 1 MB.** `SHORTENER_MAX_URL` now defaults to
+  `1048576` (was `262144`) and `SHORTENER_MAX_BODY` to `1114112` (was `327680`).
+  A Tab Share collection is a few KB, so this is pure headroom for the extreme
+  cases (hundreds of tabs, or very long page URLs). Override both to go higher,
+  keeping `MAX_BODY` above `MAX_URL`; a reverse proxy in front also needs
+  `client_max_body_size` past ~1 MB. The Cloudflare Worker port picks up a
+  `SHORTENER_MAX_URL` var too (was a hard-coded 256 KB).
+
 ## [0.3.0] - 2026-09-02
 
 ### Added

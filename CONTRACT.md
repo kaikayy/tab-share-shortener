@@ -86,7 +86,8 @@ keep token rides in the `X-Keep-Token` response header (exposed via
    allowed. An empty `SHORTENER_HOSTS` disables the check ("open mode") -- only
    safe behind auth or a trusted network.
 4. Not already a link on this shortener's own host (loop guard).
-5. At most `SHORTENER_MAX_URL` bytes (256 KB default).
+5. At most `SHORTENER_MAX_URL` bytes (1 MB default). Raising it also needs
+   `SHORTENER_MAX_BODY` raised to stay above it (JSON `POST` overhead).
 
 ## CORS
 

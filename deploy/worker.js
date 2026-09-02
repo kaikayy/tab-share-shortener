@@ -18,7 +18,7 @@ import { ADJECTIVES, NOUNS } from "./worker-words.js";
 
 const ALPHABET = "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
 const CODE_LEN = 7;
-const MAX_URL_BYTES = 256 * 1024;
+const MAX_URL_BYTES = 1024 * 1024; // default; override with the SHORTENER_MAX_URL Worker var
 const META_REFRESH_OVER = 7000;
 // Link lifetime. `SHORTENER_TTL_DAYS` Worker var (default 30) sets it; a POST
 // may pass `ttlDays` per link; 0 = never. KV needs expirationTtl >= 60s.
@@ -77,7 +77,8 @@ function normalizeMode(mode) {
 
 function validate(raw, env) {
   if (typeof raw !== "string" || raw === "") return { ok: false, status: 400, error: "missing url" };
-  if (new TextEncoder().encode(raw).length > MAX_URL_BYTES) return { ok: false, status: 413, error: "url too long" };
+  const maxUrl = Number(env.SHORTENER_MAX_URL) || MAX_URL_BYTES;
+  if (new TextEncoder().encode(raw).length > maxUrl) return { ok: false, status: 413, error: "url too long" };
   let u;
   try {
     u = new URL(raw);
@@ -176,7 +177,7 @@ export default {
     if (method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     if (method === "GET" && p === "/api/health") {
-      return json({ ok: true, allowedHosts: allowedHosts(env).length ? allowedHosts(env) : ["*"], maxUrlBytes: MAX_URL_BYTES });
+      return json({ ok: true, allowedHosts: allowedHosts(env).length ? allowedHosts(env) : ["*"], maxUrlBytes: Number(env.SHORTENER_MAX_URL) || MAX_URL_BYTES });
     }
 
     if (p === "/api/shorten" && req.method === "POST") {

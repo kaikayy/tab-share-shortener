@@ -88,11 +88,13 @@ export const config = {
    */
   allowedHosts: computeAllowedHosts(),
 
-  /** Largest URL (in bytes) the service will store. 256 KB by default. */
-  maxUrlBytes: envInt("SHORTENER_MAX_URL", 256 * 1024),
+  /** Largest URL (in bytes) the service will store. 1 MB by default -- a Tab
+   *  Share collection is a few KB, so this is pure headroom. */
+  maxUrlBytes: envInt("SHORTENER_MAX_URL", 1024 * 1024),
 
-  /** Largest request body accepted, a little above maxUrlBytes for JSON overhead. */
-  maxBodyBytes: envInt("SHORTENER_MAX_BODY", 320 * 1024),
+  /** Largest request body accepted, a little above maxUrlBytes for JSON
+   *  overhead. Raise this alongside SHORTENER_MAX_URL if you override that. */
+  maxBodyBytes: envInt("SHORTENER_MAX_BODY", 1024 * 1024 + 64 * 1024),
 
   /**
    * Above this Location-header length, redirect with an HTML meta-refresh page

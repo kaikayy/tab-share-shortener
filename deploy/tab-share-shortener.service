@@ -30,6 +30,12 @@ Environment=SHORTENER_STORE=/PATH/TO/data/links.json
 Environment=SHORTENER_TRUST_PROXY=1
 Environment=SHORTENER_TTL_DAYS=0
 
+# Payload ceiling. Defaults are 1 MB / ~1.06 MB -- only set these to go higher,
+# and keep MAX_BODY a little above MAX_URL. A reverse proxy in front also needs
+# client_max_body_size raised past ~1 MB (nginx default).
+# Environment=SHORTENER_MAX_URL=1048576
+# Environment=SHORTENER_MAX_BODY=1114112
+
 # hardening (optional, safe defaults)
 NoNewPrivileges=true
 PrivateTmp=true

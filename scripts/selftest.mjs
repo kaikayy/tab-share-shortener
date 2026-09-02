@@ -42,6 +42,7 @@ const test = (name, fn) => tests.push([name, fn]);
 const { generate, looksLikeCode, normalizeMode } = await import("../src/codes.mjs");
 const { RateLimiter } = await import("../src/ratelimit.mjs");
 const { validateTarget } = await import("../src/validate.mjs");
+const { config } = await import("../src/config.mjs");
 const { truncateIp } = await import("../src/accesslog.mjs");
 
 test("SHORTENER_HOSTS_FILE merges with SHORTENER_HOSTS", () => {
@@ -123,7 +124,7 @@ test("validateTarget: allowlist + scheme rules", () => {
 });
 
 test("validateTarget: rejects oversized url", () => {
-  const huge = `${VIEWER}#` + "a".repeat(300 * 1024);
+  const huge = `${VIEWER}#` + "a".repeat(config.maxUrlBytes);
   const r = validateTarget(huge);
   assert.equal(r.ok, false);
   assert.equal(r.status, 413);
@@ -238,7 +239,7 @@ test("unknown code -> 404", async () => {
 });
 
 test("oversized POST body -> clean 413 (not a connection reset)", async () => {
-  const huge = `${VIEWER}#` + "a".repeat(400 * 1024); // > maxBodyBytes
+  const huge = `${VIEWER}#` + "a".repeat(config.maxBodyBytes + 64 * 1024); // > maxBodyBytes
   const r = await api("POST", "/api/shorten", { json: { url: huge } });
   assert.equal(r.status, 413);
   assert.match(r.text, /exceeds/);
