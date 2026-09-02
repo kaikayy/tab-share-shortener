@@ -110,17 +110,12 @@ last 30; add it to cron:
 For SQLite: `sqlite3 links.sqlite ".backup 'backup.sqlite'"` or just copy the
 file (WAL makes a plain `cp` safe enough).
 
-**On the roadmap -- a MySQL / MariaDB backend.** The `sqlite` backend needs
-Node 24, so an older box (like a KeyHelp/cPanel host on Node 20) is stuck on
-`file`. Those hosts almost always *do* offer a MySQL/MariaDB database, so a
-`mysql` backend is the planned durable option there. It would be the project's
-first runtime dependency (a driver such as `mysql2` -- Node has no built-in
-MySQL client), kept optional and loaded only when selected, the same way
-`node:sqlite` is today. Same `openStore()` surface: `has / get / put / delete /
-bumpHits / findByUrl / revoke / unrevoke / list / stats / flushSync / close` in
-[`src/store-file.mjs`](src/store-file.mjs), wired into `src/store.mjs`. The
-analytics store ([`src/analytics.mjs`](src/analytics.mjs)) is deliberately flat
-JSON so it can move to the same database in the same step.
+**On the roadmap -- a MySQL / MariaDB backend** for Node 20 boxes (KeyHelp,
+cPanel) that can't run the Node 24 `sqlite` backend. Same `openStore()` surface:
+`has / get / put / delete / bumpHits / findByUrl / revoke / unrevoke / list /
+stats / flushSync / close` in [`src/store-file.mjs`](src/store-file.mjs), wired
+into `src/store.mjs`. Details and the other roadmap items in
+[`ROADMAP.md`](ROADMAP.md).
 
 Identical links are **de-duplicated**: shortening the same URL twice returns the
 same code (the response carries `"reused": true`).
@@ -154,6 +149,12 @@ link but keeps the row), manual/vanity link creation, an editor for the host
 allowlist, and redirect analytics (daily counts, busiest links, referrer
 *hosts*, why links were rejected). It is one page, no build step, no external
 requests.
+
+The link table shows the **target host only**. Revealing a stored destination
+(for a Tab Share link, the pages someone bundled) is a deliberate per-link
+action, and the JSON export asks first. See [`ROADMAP.md`](ROADMAP.md) for where
+this is headed -- an instance whose operator genuinely cannot read the shared
+collections.
 
 It is **off unless `SHORTENER_ADMIN_TOKEN` is set** -- with the token unset the
 whole `/admin` tree returns 404 and is not discoverable. The installer

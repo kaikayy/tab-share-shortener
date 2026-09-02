@@ -55,9 +55,11 @@ function readCookie(req, name) {
 function presentedToken(req, urlObj, method) {
   const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || "");
   if (m) return m[1].trim();
+  // An explicit ?token= login link wins over any existing cookie, so a stale or
+  // wrong cookie can't lock you out -- the fresh link always re-authenticates.
+  if (method === "GET" && urlObj.searchParams.has("token")) return urlObj.searchParams.get("token");
   const c = readCookie(req, COOKIE);
   if (c) return c;
-  if (method === "GET" && urlObj.searchParams.has("token")) return urlObj.searchParams.get("token");
   return "";
 }
 
@@ -203,8 +205,19 @@ export async function handleAdmin(req, res, urlObj, { store }) {
     if (method === "GET" && p === "/admin/api/links") {
       const q = (urlObj.searchParams.get("q") || "").toLowerCase();
       const limit = Math.min(Number(urlObj.searchParams.get("limit")) || 500, 5000);
-      let rows = store.list();
-      if (q) rows = rows.filter((r) => r.code.toLowerCase().includes(q) || r.url.toLowerCase().includes(q));
+      // The list never carries destination URLs -- only the target host. Seeing
+      // the full URL (i.e. the pages someone bundled) is a deliberate per-link
+      // reveal: GET /admin/api/links/<code>/url
+      let rows = store.list().map(({ url, ...rest }) => {
+        let host = "?";
+        try {
+          host = new URL(url).host;
+        } catch {
+          /* keep "?" */
+        }
+        return { ...rest, host };
+      });
+      if (q) rows = rows.filter((r) => r.code.toLowerCase().includes(q) || r.host.toLowerCase().includes(q));
       return sendJson(res, 200, { total: rows.length, links: rows.slice(0, limit) }), true;
     }
 
@@ -213,13 +226,19 @@ export async function handleAdmin(req, res, urlObj, { store }) {
       return createLink(res, store, body), true;
     }
 
-    const linkOp = /^\/admin\/api\/links\/([^/]+)(?:\/(revoke|unrevoke|stats))?$/.exec(p);
+    const linkOp = /^\/admin\/api\/links\/([^/]+)(?:\/(revoke|unrevoke|stats|url))?$/.exec(p);
     if (linkOp) {
       const code = decodeURIComponent(linkOp[1]);
       const action = linkOp[2];
       if (method === "GET" && action === "stats") {
         const range = clampRange(urlObj.searchParams.get("range"));
         return sendJson(res, 200, { code, series: analytics.seriesForCode(code, range) }), true;
+      }
+      if (method === "GET" && action === "url") {
+        // deliberate single-link reveal of the stored destination
+        const hit = store.list().find((r) => r.code === code);
+        if (!hit) return sendJson(res, 404, { error: "no such code" }), true;
+        return sendJson(res, 200, { code, url: hit.url }), true;
       }
       if (method === "POST" && action === "revoke") {
         return sendJson(res, 200, { ok: store.revoke(code) }), true;
@@ -353,8 +372,10 @@ nav button.on{background:var(--brand);border-color:var(--brand);color:#fff}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--mut);font-weight:600;cursor:pointer;white-space:nowrap}td.u{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 tr.rv{opacity:.5}code{background:color-mix(in srgb,var(--brand) 12%,transparent);padding:.05em .35em;border-radius:4px;font-size:.92em}
-button.act{background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:12px}
+button.act{background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:12px;text-decoration:none;display:inline-block}
 button.act:hover{border-color:var(--brand)}button.act.d:hover{border-color:var(--bad);color:var(--bad)}
+button.act.xs,a.act.xs{padding:.08rem .35rem;font-size:11px}
+td.u{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,monospace;font-size:11px;vertical-align:middle}
 input,select{font:inherit;padding:.4rem .5rem;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
 .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.bars>div{display:flex;align-items:center;gap:.5rem;margin:.2rem 0}
 .bars .b{height:14px;background:var(--brand);border-radius:3px;min-width:2px}.bars .n{color:var(--mut);font-variant-numeric:tabular-nums}
@@ -430,6 +451,9 @@ const kpi=(n,l)=>'<div><span class="kpi">'+fmtN(n)+'<small>'+l+'</small></span><
 const tr=(k,x)=>'<tr><td class="mut">'+k+'</td><td>'+esc(x)+'</td></tr>';
 
 let lsort={k:'created',d:-1};
+const revealed=new Set();      // codes whose full destination the operator chose to show
+const urlCache={};             // code -> revealed URL
+const hostOf=u=>{try{return new URL(u).host}catch{return '?'}};
 async function renderLinks(v){
   const d=await api('links');
   v.innerHTML='<div class="card"><div class="row" style="margin-bottom:.6rem">'+
@@ -437,20 +461,30 @@ async function renderLinks(v){
     '<input id="ns" placeholder="slug (optional)" size="12">'+
     '<select id="nm"><option value="code">code</option><option value="words">words</option></select>'+
     '<button class="act" id="mk">create</button></div><div id="mkmsg"></div>'+
-    '<div class="row" style="margin-bottom:.6rem"><input id="lq" placeholder="filter code or url" style="flex:1">'+
-    '<a class="act" href="/admin/api/export">export JSON</a>'+
+    '<div class="row" style="margin-bottom:.6rem"><input id="lq" placeholder="filter code or host" style="flex:1">'+
+    '<button class="act" id="export">export JSON</button>'+
     '<button class="act d" id="purge">purge old 0-hit</button></div>'+
+    '<p class="mut" style="margin:.2rem 0 .8rem">The list shows the target host only. <em>show link</em> reveals one stored destination (the pages someone bundled) on request.</p>'+
     '<div id="ltab"></div></div>';
+  const tgtCell=r=>{
+    if(revealed.has(r.code)){
+      const u=urlCache[r.code];
+      return u
+        ? '<span class="u" title="'+esc(u)+'">'+esc(u)+'</span> <a class="act xs" href="/'+encodeURIComponent(r.code)+'" target="_blank" rel="noopener">open</a> <button class="act xs" data-hide="'+esc(r.code)+'">hide</button>'
+        : '<span class="mut">loading...</span>';
+    }
+    return '<span class="mut">'+esc(r.host||'?')+'</span> <button class="act xs" data-reveal="'+esc(r.code)+'">show link</button>';
+  };
   const draw=()=>{
     let rows=d.links.slice();
     const q=$('#lq').value.toLowerCase();
-    if(q)rows=rows.filter(r=>r.code.toLowerCase().includes(q)||r.url.toLowerCase().includes(q));
+    if(q)rows=rows.filter(r=>r.code.toLowerCase().includes(q)||(r.host||'').toLowerCase().includes(q));
     rows.sort((a,b)=>{const x=a[lsort.k],y=b[lsort.k];return (x>y?1:x<y?-1:0)*lsort.d});
     $('#ltab').innerHTML='<table><thead><tr>'+
-      ['code','url','mode','hits','lastHit','created','revoked',''].map(h=>h?'<th data-k="'+h+'">'+h+'</th>':'<th></th>').join('')+
+      ['code','host','mode','hits','lastHit','created','revoked',''].map(h=>h?'<th data-k="'+h+'">'+h+'</th>':'<th></th>').join('')+
       '</tr></thead><tbody>'+rows.map(r=>'<tr class="'+(r.revoked?'rv':'')+'">'+
-      '<td><a href="/'+encodeURIComponent(r.code)+'" target="_blank"><code>'+esc(r.code)+'</code></a></td>'+
-      '<td class="u" title="'+esc(r.url)+'">'+esc(r.url)+'</td><td>'+r.mode+'</td><td>'+fmtN(r.hits)+'</td>'+
+      '<td><code>'+esc(r.code)+'</code></td>'+
+      '<td>'+tgtCell(r)+'</td><td>'+r.mode+'</td><td>'+fmtN(r.hits)+'</td>'+
       '<td class="mut">'+(r.lastHit?ago(r.lastHit):'--')+'</td><td class="mut">'+ago(r.created)+'</td>'+
       '<td class="mut">'+(r.revoked?ago(r.revoked):'')+'</td>'+
       '<td class="row">'+(r.revoked
@@ -461,8 +495,16 @@ async function renderLinks(v){
   };
   draw();
   $('#ltab').onclick=async e=>{
-    const rv=e.target.dataset.rv,un=e.target.dataset.un,del=e.target.dataset.del;
+    const t=e.target;
+    const rev=t.dataset.reveal,hide=t.dataset.hide,rv=t.dataset.rv,un=t.dataset.un,del=t.dataset.del;
     try{
+      if(rev){
+        revealed.add(rev);draw();
+        try{const r=await api('links/'+encodeURIComponent(rev)+'/url');urlCache[rev]=r.url}
+        catch(err){urlCache[rev]='(error: '+err.message+')'}
+        draw();return;
+      }
+      if(hide){revealed.delete(hide);draw();return;}
       if(rv){await api('links/'+encodeURIComponent(rv)+'/revoke',{method:'POST'});row(rv).revoked=Date.now()}
       else if(un){await api('links/'+encodeURIComponent(un)+'/unrevoke',{method:'POST'});row(un).revoked=0}
       else if(del){if(!confirm('Delete '+del+' permanently?'))return;await api('links/'+encodeURIComponent(del),{method:'DELETE'});d.links=d.links.filter(r=>r.code!==del)}
@@ -473,12 +515,16 @@ async function renderLinks(v){
   const row=c=>d.links.find(r=>r.code===c);
   $('#ltab').addEventListener('click',e=>{const k=e.target.dataset.k;if(k){lsort={k,d:lsort.k===k?-lsort.d:1};draw()}});
   $('#lq').oninput=draw;
+  $('#export').onclick=()=>{
+    if(confirm('The export file contains every stored destination URL (all bundled pages). Download it?'))
+      location.href='/admin/api/export';
+  };
   $('#mk').onclick=async()=>{
     try{
       const r=await api('links',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({url:$('#nu').value,slug:$('#ns').value,mode:$('#nm').value})});
       $('#mkmsg').innerHTML='<div class="msg ok">'+esc(r.shortUrl)+(r.reused?' (existing)':'')+'</div>';
-      d.links.unshift({code:r.code,url:$('#nu').value,mode:r.mode||$('#nm').value,hits:0,lastHit:0,created:Date.now(),revoked:0});
+      d.links.unshift({code:r.code,host:hostOf($('#nu').value),mode:r.mode||$('#nm').value,hits:0,lastHit:0,created:Date.now(),revoked:0});
       $('#nu').value=$('#ns').value='';draw();
     }catch(err){$('#mkmsg').innerHTML='<div class="msg err">'+esc(err.message)+'</div>'}
   };

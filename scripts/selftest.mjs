@@ -292,10 +292,24 @@ test("admin: create then revoke -> the link 404s but the row stays", async () =>
   assert.equal((await api("GET", "/adm-demo")).status, 404);
 
   const list = JSON.parse((await admin("GET", "/admin/api/links?q=adm-demo")).text);
-  assert.ok(list.links.find((l) => l.code === "adm-demo" && l.revoked > 0));
+  const listed = list.links.find((l) => l.code === "adm-demo");
+  assert.ok(listed && listed.revoked > 0);
 
   assert.equal(JSON.parse((await admin("POST", "/admin/api/links/adm-demo/unrevoke")).text).ok, true);
   assert.equal((await api("GET", "/adm-demo")).status, 302);
+});
+
+test("admin: the link list carries the target host, not the destination URL", async () => {
+  await admin("POST", "/admin/api/links", { json: { url: `${VIEWER}#host_only_probe`, slug: "host-probe" } });
+  const list = JSON.parse((await admin("GET", "/admin/api/links?q=host-probe")).text);
+  const row = list.links.find((l) => l.code === "host-probe");
+  assert.equal(row.host, "kaikayy.github.io");
+  assert.equal(row.url, undefined); // the browsable list never carries destinations
+
+  // ...revealing one link is a deliberate, per-code request
+  const rev = JSON.parse((await admin("GET", "/admin/api/links/host-probe/url")).text);
+  assert.equal(rev.url, `${VIEWER}#host_only_probe`);
+  assert.equal((await admin("GET", "/admin/api/links/nope-nope/url")).status, 404);
 });
 
 test("admin: editing the host allowlist takes effect immediately", async () => {

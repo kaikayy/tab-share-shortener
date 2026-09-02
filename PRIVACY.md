@@ -1,6 +1,6 @@
 # Privacy -- Tab Share shortener
 
-_Last updated: 2026-09-02 (0.2.0)_
+_Last updated: 2026-09-02 (0.2.1)_
 
 This covers the **first-party instance at `s.kaikay.de`**, run by the Tab Share
 author. If you [self-host](SELF-HOSTING.md) the shortener, you are the operator
@@ -14,8 +14,13 @@ receives nothing.
 
 - **The long URL you shortened**, keyed by the short code, so the short link can
   redirect to it. For a Tab Share link this URL contains every page URL and
-  title in the collection, in its `#` fragment. Anyone who operates a shortener
-  you send a link to can read that -- pick one you trust, or run your own.
+  title in the collection, in its `#` fragment. Any shortener you send a link to
+  necessarily stores its destination -- pick one you trust, or run your own.
+  In the admin panel the link list shows only the **target host**; seeing a
+  full destination is a deliberate one-link action. But the URL is stored in
+  full on the server (it has to be, to redirect), so the operator *can* read it
+  if they choose to. Making an instance where the operator genuinely cannot is
+  on the [roadmap](ROADMAP.md).
 - The code's **style** (`code` or `words`), its creation time, and an optional
   expiry.
 - Nothing about who created it: no account, no IP, no cookie.
