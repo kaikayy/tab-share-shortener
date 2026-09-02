@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 #
-# auto-update.sh -- pull the latest main and redeploy if the checkout is behind.
+# auto-update.sh -- match the checkout to origin and redeploy if it changed.
 #
 # Run it from a git checkout of this repo (the arg, or the repo the script lives
 # in). Safe to run on a timer: it does nothing when already up to date, and
 # `install.sh` reuses the config from the existing systemd unit.
+#
+# This is a deploy mirror -- it does not carry local commits -- so it hard-resets
+# to the upstream branch rather than merging. That way a force-push upstream
+# (e.g. a history rewrite) self-heals instead of wedging the timer.
 #
 #   bash deploy/auto-update.sh [/path/to/checkout]
 #
@@ -24,5 +28,5 @@ if [ "$LOCAL" = "$REMOTE" ]; then
 fi
 
 echo "auto-update: ${LOCAL:0:9} -> ${REMOTE:0:9}, redeploying"
-git pull --ff-only --quiet
+git reset --hard --quiet "$REMOTE"
 NONINTERACTIVE=1 bash deploy/install.sh

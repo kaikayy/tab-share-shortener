@@ -50,8 +50,10 @@ bash deploy/install-autoupdate.sh # checks every 10 min; pass e.g. 1h to slow it
 ```
 
 [`deploy/auto-update.sh`](deploy/auto-update.sh) does nothing when the checkout
-is already current; on a new commit it `git pull --ff-only`s and re-runs
-`install.sh` (which restarts the service). Watch it with
+is already current; otherwise it **hard-resets to the upstream branch** (the
+checkout is a deploy mirror, it carries no local commits) and re-runs
+`install.sh` (which restarts the service). Hard-reset rather than merge so a
+force-push upstream self-heals instead of wedging the timer. Watch it with
 `journalctl --user -u tab-share-shortener-update.service -f`.
 
 ### Or by hand
