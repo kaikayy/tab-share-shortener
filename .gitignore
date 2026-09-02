@@ -9,3 +9,5 @@ deploy/wrangler.toml
 
 # promo banners -- generated/iterated locally, not tracked
 assets/promo-banner-*
+# ...except the suite banner, which the README uses
+!assets/promo-banner-suite.png

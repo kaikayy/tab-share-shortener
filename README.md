@@ -1,8 +1,17 @@
 # Tab Share link shortener
 
+![Tab Share and the Tab Share shortener](assets/promo-banner-suite.png)
+
 A tiny, self-hostable shortener for [Tab Share](https://github.com/kaikayy/multi-link-share)
 links -- the ones that carry a whole tab collection in the URL `#fragment` and
 can run to several kilobytes.
+
+Part of the **Tab Share suite**: the companion to the
+[Tab Share browser extension](https://github.com/kaikayy/multi-link-share/tree/dev)
+([Chrome Web Store](https://chromewebstore.google.com/detail/meieckangeakbekjbijbgfkkelneplfe)),
+which packs a group of tabs into one shareable link -- this service shortens it.
+(The extension links here from **Options -> Shorten links**, where *Tab Share
+shortener* is the recommended provider.)
 
 - **Any length.** A 40-page collection is ~4 KB; a 100-page encrypted one ~6 KB.
   This service takes it (POST body, or a large GET) where TinyURL / is.gd choke.
