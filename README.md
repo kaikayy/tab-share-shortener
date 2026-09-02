@@ -7,7 +7,7 @@ links -- the ones that carry a whole tab collection in the URL `#fragment` and
 can run to several kilobytes.
 
 Part of the **Tab Share suite**: the companion to the
-[Tab Share browser extension](https://github.com/kaikayy/multi-link-share/tree/dev)
+[Tab Share browser extension](https://github.com/kaikayy/multi-link-share)
 ([Chrome Web Store](https://chromewebstore.google.com/detail/meieckangeakbekjbijbgfkkelneplfe)),
 which packs a group of tabs into one link that **opens in any browser with no
 extension**. This service shortens that link -- and because it just redirects to
