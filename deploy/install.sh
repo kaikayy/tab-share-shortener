@@ -58,13 +58,17 @@ ask SHORTENER_BASE "Public base URL (no trailing slash)"
 SHORTENER_HOSTS=${SHORTENER_HOSTS:-$(unit_env SHORTENER_HOSTS)}; SHORTENER_HOSTS=${SHORTENER_HOSTS:-kaikayy.github.io}
 ask SHORTENER_HOSTS "Allowed target host(s), comma-separated (seeds the allowlist file)"
 
-# Admin panel token: keep a previous one, else generate. Unset it in the unit to
-# disable the panel entirely.
-ADMIN_TOKEN=${SHORTENER_ADMIN_TOKEN:-$(unit_env SHORTENER_ADMIN_TOKEN)}
-NEW_TOKEN=0
+# Admin panel token: use the one you pass, else keep the previous one, else
+# generate. Unset it in the unit to disable the panel entirely.
+#   TOKEN_STATE: kept | generated | changed  (drives the summary line)
+PREV_TOKEN=$(unit_env SHORTENER_ADMIN_TOKEN)
+ADMIN_TOKEN=${SHORTENER_ADMIN_TOKEN:-$PREV_TOKEN}
+TOKEN_STATE=kept
 if [ -z "$ADMIN_TOKEN" ]; then
   ADMIN_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 44 || true)
-  NEW_TOKEN=1
+  TOKEN_STATE=generated
+elif [ -n "$PREV_TOKEN" ] && [ "$ADMIN_TOKEN" != "$PREV_TOKEN" ]; then
+  TOKEN_STATE=changed
 fi
 
 DEFAULT_BACKEND=file; [ "$NODE_MAJOR" -ge 24 ] && DEFAULT_BACKEND=sqlite
@@ -99,7 +103,12 @@ say "runs as     : $RUN_USER"
 say "base        : $SHORTENER_BASE"
 say "allowlist   : $HOSTS_FILE  (seed: $SHORTENER_HOSTS)"
 say "backend     : $STORE_BACKEND ($STORE_PATH)"
-say "admin panel : $SHORTENER_BASE/admin  ($([ "$NEW_TOKEN" = 1 ] && echo 'new token generated' || echo 'existing token kept'))"
+case "$TOKEN_STATE" in
+  generated) TOKEN_NOTE="new token generated";;
+  changed)   TOKEN_NOTE="token changed to the one you passed";;
+  *)         TOKEN_NOTE="existing token kept";;
+esac
+say "admin panel : $SHORTENER_BASE/admin  ($TOKEN_NOTE)"
 echo
 if [ "${NONINTERACTIVE:-}" != 1 ]; then read -r -p "Proceed? [y/N] " ok; [ "${ok:-}" = y ] || exit 1; fi
 
@@ -187,7 +196,7 @@ echo
 say "Put a TLS-terminating reverse proxy in front for $SHORTENER_BASE (see SELF-HOSTING.md)."
 say "Extension endpoint: $SHORTENER_BASE/new?url=   (or ?mode=words&url= for word slugs)"
 if [ -n "$ADMIN_TOKEN" ]; then
-  if [ "$NEW_TOKEN" = 1 ] && [ "${NONINTERACTIVE:-}" != 1 ]; then
+  if [ "$TOKEN_STATE" != kept ] && [ "${NONINTERACTIVE:-}" != 1 ]; then
     echo
     say "Admin panel: $SHORTENER_BASE/admin?token=$ADMIN_TOKEN"
     say "(shown once -- it is stored in $UNIT as SHORTENER_ADMIN_TOKEN)"
