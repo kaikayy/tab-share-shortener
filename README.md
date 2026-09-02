@@ -54,12 +54,32 @@ first-party public instance at **`https://s.kaikay.de`**, which allow-lists the
 built-in viewer -- so the default setup needs no configuration. Off until you
 turn it on; still opt-in per link.
 
+> The public `s.kaikay.de` instance currently shortens links pointing at
+> **`kaikayy.github.io` only** (the built-in viewer). If you run your own
+> viewer, self-host the shortener too (below), or open an issue to have your
+> host added to the public instance's allowlist.
+
 To point it at your own instance, put its address in that same field. For a
 local dev instance: `npm run dev` here, then set the address to
 `http://localhost:8779` in a `DEV_LOCALHOST=1` extension build.
 
 Native contract: `GET <address>/new?url=<enc>` (add `&mode=words`) -> the short
 URL as plain text.
+
+## How it compares
+
+What each shortener keeps when someone opens a short link:
+
+| Shortener | Logged on each click | Cookies / 3rd-party trackers | Data sold or shared |
+| --- | --- | --- | --- |
+| **this one** (`s.kaikay.de` or self-hosted) | aggregate day counts only: hits, referrer *host*, browser family + major version. No IP, no geolocation, no full User-Agent, no per-visitor row. | none | never |
+| **da.gd** (built into the extension) | a hit counter; small open-source service, no ad or analytics scripts | none observed | no |
+| **TinyURL** (built into the extension) | IP address, browser type + version, referring URLs, timestamps; forwards your **full referrer** to the destination | yes | not stated in its policy |
+| **Bitly** (not offered) | per click: timestamp, IP, user-agent, country, city, device, browser, referring domain | yes | yes -- selling click analytics is a paid feature |
+
+TinyURL / Bitly rows are summarised from their published policies and
+independent testing as of 2026 and can change. Full detail for this one is in
+[PRIVACY.md](PRIVACY.md).
 
 ## API
 
