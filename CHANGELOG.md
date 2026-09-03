@@ -1,6 +1,7 @@
 # Changelog
 
-Notable changes. Dates are `YYYY-MM-DD`.
+All notable changes to the Tab Share link shortener. Format loosely follows
+[Keep a Changelog](https://keepachangelog.com/); dates are `YYYY-MM-DD`.
 
 ## [0.4.0] - 2026-09-03
 
