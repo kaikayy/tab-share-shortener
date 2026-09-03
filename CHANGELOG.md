@@ -4,6 +4,8 @@ Notable changes. Dates are `YYYY-MM-DD`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-03
+
 ### Changed
 
 - **Admin panel redesign.** The `/admin` page keeps every feature and API call
