@@ -377,190 +377,376 @@ const PAGE = `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>Tab Share shortener -- admin</title>
 <style>
-:root{--bg:#fbfbfd;--card:#fff;--ink:#1a1a1f;--mut:#6b6b76;--line:#e4e4ea;--brand:#c026a8;--accent:#f4a259;--ok:#2f9e44;--bad:#e03131}
-@media(prefers-color-scheme:dark){:root{--bg:#141417;--card:#1d1d21;--ink:#ececf0;--mut:#9a9aa6;--line:#33333b;--brand:#e879d4;--accent:#f4a259}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-a{color:var(--brand)}h1{font-size:18px;margin:0}h2{font-size:14px;margin:0 0 .6rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
-header{display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
-header .sp{flex:1}main{max-width:1080px;margin:0 auto;padding:1.2rem}
-nav{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:1rem}
-nav button{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:.4rem .8rem;border-radius:7px;cursor:pointer;font:inherit}
-nav button.on{background:var(--brand);border-color:var(--brand);color:#fff}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem;margin-bottom:1rem}
-.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-.kpi{font-size:26px;font-weight:600}.kpi small{display:block;font-size:12px;font-weight:400;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600;cursor:pointer;white-space:nowrap}td.u{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-tr.rv{opacity:.5}code{background:color-mix(in srgb,var(--brand) 12%,transparent);padding:.05em .35em;border-radius:4px;font-size:.92em}
-button.act{background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:12px;text-decoration:none;display:inline-block}
-button.act:hover{border-color:var(--brand)}button.act.d:hover{border-color:var(--bad);color:var(--bad)}
-button.act.xs,a.act.xs{padding:.08rem .35rem;font-size:11px}
-td.u{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,monospace;font-size:11px;vertical-align:middle}
-input,select{font:inherit;padding:.4rem .5rem;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
-.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.bars>div{display:flex;align-items:center;gap:.5rem;margin:.2rem 0}
-.bars .b{height:14px;background:var(--brand);border-radius:3px;min-width:2px}.bars .n{color:var(--mut);font-variant-numeric:tabular-nums}
-.bars .l{width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
-svg .ax{stroke:var(--line)}svg .h{fill:var(--brand)}svg .c{fill:var(--accent)}
-.msg{padding:.5rem .7rem;border-radius:7px;margin-bottom:.6rem;font-size:13px}.msg.ok{background:color-mix(in srgb,var(--ok) 15%,transparent)}.msg.err{background:color-mix(in srgb,var(--bad) 15%,transparent)}
-.mut{color:var(--mut)}.tag{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:.05rem .5rem;color:var(--mut)}
+:root{
+  --ground:#f6f4f8;--surface:#fff;--surface-2:#faf8fb;
+  --ink:#221d29;--muted:#6d6478;--faint:#9a90a4;
+  --line:#e7e1ec;--line-strong:#d8d0e0;
+  --brand:#bb2497;--brand-soft:#f4e2ef;
+  --amber:#d9832f;--amber-soft:#f7e9db;
+  --good:#3a8f63;--warn:#b9791f;--bad:#cf4257;
+  --shadow:0 1px 2px rgba(34,29,41,.04),0 8px 24px -12px rgba(34,29,41,.1);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+@media(prefers-color-scheme:dark){:root{
+  --ground:#151219;--surface:#1e1a24;--surface-2:#241f2b;
+  --ink:#ece7f1;--muted:#9c92a7;--faint:#6f6579;
+  --line:#332c3c;--line-strong:#443b4f;
+  --brand:#e97ad0;--brand-soft:#3a1f37;
+  --amber:#e7a45f;--amber-soft:#3a2c1c;
+  --good:#5cbd8a;--warn:#d79a3f;--bad:#e5687c;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.55);
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 15px/1.55 var(--sans)}
+a{color:var(--brand);text-decoration:none}a:hover{text-decoration:underline}
+h1,h2,h3{margin:0}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+header{border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:20}
+.bar{max-width:1120px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mark{display:flex;align-items:center;gap:9px}
+.mark .dot{width:9px;height:9px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+.mark b{font:600 15px/1 var(--mono);letter-spacing:-.01em}
+.mark span{font:400 12px/1 var(--mono);color:var(--faint)}
+.bar .spacer{flex:1}
+.pill{font:500 12px/1 var(--sans);color:var(--muted);border:1px solid var(--line-strong);border-radius:999px;padding:6px 11px;display:inline-flex;gap:7px;align-items:center;background:var(--surface-2)}
+.pill .live{width:6px;height:6px;border-radius:50%;background:var(--good)}
+.pill .live.off{background:var(--bad)}
+select.range{font:500 12px/1 var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:5px 8px}
+
+nav{border-bottom:1px solid var(--line);background:var(--surface);overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav .inner{max-width:1120px;margin:0 auto;padding:0 12px;display:flex;gap:2px}
+nav button{appearance:none;background:none;border:0;cursor:pointer;font:500 13.5px/1 var(--sans);color:var(--muted);padding:13px 14px;border-bottom:2px solid transparent;white-space:nowrap;display:inline-flex;gap:7px;align-items:center;text-transform:capitalize}
+nav button .c{font:500 11px/1 var(--mono);color:var(--faint);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 5px}
+nav button:hover{color:var(--ink)}
+nav button.on{color:var(--ink);border-bottom-color:var(--brand)}
+nav button.on .c{color:var(--brand);border-color:var(--brand-soft);background:var(--brand-soft)}
+
+.wrap{max-width:1120px;margin:0 auto;padding:22px 20px 72px}
+.vhead{font:600 12px/1 var(--sans);text-transform:uppercase;letter-spacing:.09em;color:var(--faint);margin-bottom:14px}
+.grid{display:grid;gap:16px}
+.stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.two{grid-template-columns:1.5fr 1fr;align-items:start}
+@media(max-width:840px){.two{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.panel.pad{padding:18px}
+.panel+.panel,.grid+.panel,.panel+.grid{margin-top:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow)}
+.stat .n{font:500 30px/1 var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat .k{margin-top:7px;font:600 10.5px/1 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stat.rev .n{color:var(--muted)}
+.cardhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.cardhead h3{font:600 14px/1 var(--sans)}
+.cardhead .sub{font:400 12px/1 var(--mono);color:var(--faint)}
+
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font:400 10px/1 var(--mono);fill:var(--faint)}
+.chart .gridline{stroke:var(--line);stroke-dasharray:2 3}
+.chart .base{stroke:var(--line-strong)}
+.chart rect.h{fill:var(--brand)} .chart rect.c{fill:var(--amber)}
+.chart rect.dim{opacity:.42}
+.chart circle.cap{fill:var(--brand);stroke:var(--surface);stroke-width:2}
+.legend{display:flex;gap:16px;margin-top:12px;font:500 11.5px/1 var(--sans);color:var(--muted)}
+.legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+.legend i.h{background:var(--brand)} .legend i.c{background:var(--amber)}
+
+.bars{display:flex;flex-direction:column;gap:12px}
+.bars .brow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.bars .lab{font:400 12.5px/1.3 var(--sans);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars .lab code{font-family:var(--mono);font-size:12px;color:var(--brand)}
+.bars .lab .sub{color:var(--faint);font-size:11px}
+.bars .val{justify-self:end;font:500 12px/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+.bars .track{grid-column:1/-1;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.bars .fill{height:100%;border-radius:4px;background:var(--brand)}
+.bars .fill.bad{background:var(--bad)}
+.empty{font:400 12.5px/1 var(--sans);color:var(--faint);padding:4px 0}
+
+.kv{display:grid;grid-template-columns:auto 1fr}
+.kv dt{padding:9px 0;font:400 12.5px/1.3 var(--sans);color:var(--muted);border-bottom:1px solid var(--line)}
+.kv dd{margin:0;padding:9px 0;font:500 12.5px/1.3 var(--mono);color:var(--ink);border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.kv dt:last-of-type,.kv dd:last-of-type{border-bottom:0}
+.kv .ok{color:var(--good)} .kv .warn{color:var(--warn)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{font:600 10.5px/1 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--ink)}
+thead th.r,tbody td.r{text-align:right}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+td .slug{font:500 12.5px/1 var(--mono);color:var(--brand);white-space:nowrap}
+td.target{max-width:360px}
+td.target .t{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;overflow:hidden}
+td.target .u{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono)}
+td .num{font:500 13px/1 var(--mono);font-variant-numeric:tabular-nums}
+td .ago{color:var(--muted);font-size:12px}
+td .rage{font:400 11px/1 var(--sans);color:var(--faint);margin-left:4px;white-space:nowrap}
+tr.rv td{opacity:.55}
+tr.rv td .slug{color:var(--muted);text-decoration:line-through}
+
+.chip{font:600 10px/1 var(--sans);text-transform:uppercase;letter-spacing:.05em;padding:4px 7px;border-radius:6px;display:inline-flex;gap:5px;align-items:center;border:1px solid transparent;white-space:nowrap}
+.chip .d{width:5px;height:5px;border-radius:50%;background:currentColor}
+.chip.code{color:var(--muted);background:var(--surface-2);border-color:var(--line)}
+.chip.words{color:var(--amber);background:var(--amber-soft)}
+.chip.live{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
+.chip.rev{color:var(--bad);background:color-mix(in srgb,var(--bad) 13%,transparent)}
+.chip.exp{color:var(--warn);background:var(--amber-soft)}
+
+.rowact{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+button.act,a.act{appearance:none;cursor:pointer;font:500 12px/1 var(--sans);border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);padding:6px 10px;border-radius:8px;text-decoration:none;display:inline-block}
+button.act:hover,a.act:hover{border-color:var(--brand);color:var(--brand)}
+button.act.d:hover{border-color:var(--bad);color:var(--bad)}
+button.act.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button.act.primary:hover{filter:brightness(1.06);color:#fff}
+button.act.xs,a.act.xs{padding:3px 7px;font-size:11px}
+
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.toolbar input,.toolbar select,textarea{font:400 13px/1.3 var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:9px;padding:9px 11px}
+.toolbar input.grow{flex:1;min-width:200px;font-family:var(--mono);font-size:12.5px}
+.toolbar input.slug{width:130px;font-family:var(--mono);font-size:12.5px}
+.toolbar input.ttl{width:92px}
+.toolbar .push{margin-left:auto;display:flex;gap:9px;flex-wrap:wrap}
+textarea{width:100%;font-family:var(--mono);font-size:12.5px;line-height:1.7;resize:vertical}
+.hint{font:400 12px/1.5 var(--sans);color:var(--muted);margin:10px 0 0}
+.hint code{font-family:var(--mono);font-size:11.5px}
+.msg{padding:9px 12px;border-radius:9px;margin-top:10px;font:500 12.5px/1.4 var(--sans)}
+.msg.ok{color:var(--good);background:color-mix(in srgb,var(--good) 13%,transparent)}
+.msg.err{color:var(--bad);background:color-mix(in srgb,var(--bad) 13%,transparent)}
+.note{font:500 12px/1 var(--sans);color:var(--muted)}
+
+.feed td .ev{display:flex;align-items:center;gap:8px;text-transform:capitalize}
+.feed .k{width:6px;height:6px;border-radius:50%;flex:none}
+.feed .k.hit{background:var(--brand)} .feed .k.create{background:var(--amber)} .feed .k.reject{background:var(--bad)}
+.feed td .detail code{font-family:var(--mono);font-size:12px;color:var(--ink)}
+.feed td .detail .from{color:var(--muted)}
+
+footer{max-width:1120px;margin:34px auto 0;padding:0 20px;font:400 12px/1.6 var(--mono);color:var(--faint)}
+footer .sep{display:inline-block;width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.5;vertical-align:middle;margin:0 8px}
 </style></head><body>
-<header><h1>Tab Share shortener</h1><span class="tag" id="ver"></span><span class="sp"></span>
-<label class="mut">range <select id="range"><option>7</option><option selected>30</option><option>90</option><option>365</option></select></label>
-<a href="/admin/logout">log out</a></header>
-<main>
-<nav id="tabs"></nav>
-<div id="view"></div>
-</main>
+<header><div class="bar">
+  <div class="mark"><span class="dot"></span><b id="host">shortener</b><span>/admin</span></div>
+  <div class="spacer"></div>
+  <span class="pill"><span class="live" id="live"></span><span id="health">checking</span></span>
+  <label class="pill">range
+    <select class="range" id="range"><option>7</option><option selected>30</option><option>90</option><option>365</option></select>
+  </label>
+  <a href="/admin/logout" class="pill">log out</a>
+</div></header>
+<nav><div class="inner" id="tabs" role="tablist"></div></nav>
+<div class="wrap"><div id="view"></div></div>
+<footer>Tab Share link shortener<span class="sep"></span>AGPL-3.0<span class="sep"></span><a href="https://github.com/kaikayy/tab-share-shortener" target="_blank" rel="noopener">source</a></footer>
 <script>
 const $=s=>document.querySelector(s), api=(u,o)=>fetch('/admin/api/'+u,o).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fmtN=n=>n.toLocaleString(), ago=t=>{if(!t)return 'never';const s=(Date.now()-t)/1e3;for(const[u,d]of[['d',86400],['h',3600],['m',60]])if(s>=d)return Math.floor(s/d)+u+' ago';return 'just now'};
+const fmtN=n=>Number(n).toLocaleString('en-US');
+const ago=t=>{if(!t)return 'never';const s=(Date.now()-t)/1e3;if(s<45)return 'just now';for(const[u,d]of[['d',86400],['h',3600],['m',60]])if(s>=d)return Math.floor(s/d)+u+' ago';return 'just now'};
 const until=t=>{if(!t)return 'never';const s=(t-Date.now())/1e3;if(s<=0)return 'expired';for(const[u,d]of[['d',86400],['h',3600],['m',60]])if(s>=d)return 'in '+Math.floor(s/d)+u;return 'soon'};
 const kib=b=>b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';
+const hostOf=u=>{try{return new URL(u).host}catch{return '?'}};
 let range=30, tab='overview';
-$('#range').onchange=e=>{range=+e.target.value;render()};
-const TABS=['overview','links','traffic','hosts','activity'];
-$('#tabs').innerHTML=TABS.map(t=>'<button data-t="'+t+'">'+t+'</button>').join('');
-$('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;render()}};
 
-function barChart(series){
-  if(!series||!series.length) return '<p class="mut">no data</p>';
-  const w=Math.max(series.length*14,320),h=90,max=Math.max(1,...series.map(d=>d.hits+d.creates));
-  const bw=w/series.length;
-  const bars=series.map((d,i)=>{const x=i*bw+1,bwi=Math.max(bw-2,1);
-    const hh=(d.hits/max)*(h-16),ch=(d.creates/max)*(h-16);
-    return '<rect class="h" x="'+x+'" y="'+(h-16-hh)+'" width="'+bwi+'" height="'+hh+'"><title>'+d.day+': '+d.hits+' hits</title></rect>'+
-           (ch?'<rect class="c" x="'+x+'" y="'+(h-16-hh-ch)+'" width="'+bwi+'" height="'+ch+'"><title>'+d.day+': '+d.creates+' created</title></rect>':'')}).join('');
-  const labels=[series[0],series[series.length-1]].map((d,i)=>'<text x="'+(i?w:0)+'" y="'+h+'" font-size="10" fill="currentColor" text-anchor="'+(i?'end':'start')+'">'+d.day.slice(5)+'</text>').join('');
-  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="110" preserveAspectRatio="none"><line class="ax" x1="0" y1="'+(h-16)+'" x2="'+w+'" y2="'+(h-16)+'"/>'+bars+labels+'</svg>';
+const TABS=['overview','links','traffic','hosts','activity'];
+$('#tabs').innerHTML=TABS.map(t=>'<button data-t="'+t+'">'+t+'<span class="c" data-c="'+t+'" hidden></span></button>').join('');
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b&&b.dataset.t){tab=b.dataset.t;render()}};
+$('#range').onchange=e=>{range=+e.target.value;render()};
+function badge(t,n){const el=$('[data-c="'+t+'"]');if(!el)return;if(n==null){el.hidden=true;return}el.textContent=n;el.hidden=false}
+function health(o){
+  $('#host').textContent=(o.base||'').replace(/^https?:\\/\\//,'')||'shortener';
+  $('#health').textContent='healthy \\u00b7 v'+o.version+' \\u00b7 '+o.backend;
+  $('#live').classList.remove('off');
+  badge('links',fmtN(o.links.total));
 }
-function bars(rows,label){
-  if(!rows.length) return '<p class="mut">nothing yet</p>';
+
+function vhead(t){return '<div class="vhead">'+t+'</div>'}
+function panel(inner,cls){return '<div class="panel pad'+(cls?' '+cls:'')+'">'+inner+'</div>'}
+function cardhead(h,sub){return '<div class="cardhead"><h3>'+h+'</h3>'+(sub?'<span class="sub">'+sub+'</span>':'')+'</div>'}
+function chip(kind,txt){return '<span class="chip '+kind+'"><span class="d"></span>'+txt+'</span>'}
+
+function chart(data){
+  if(!data||!data.length) return '<p class="empty">no data yet</p>';
+  const W=680,H=210,padL=32,padR=8,padT=12,padB=22, iw=W-padL-padR, ih=H-padT-padB;
+  const max=Math.max(1,...data.map(d=>d.hits+d.creates)), nice=Math.max(4,Math.ceil(max/20)*20);
+  const bw=iw/data.length, x=i=>padL+i*bw, y=v=>padT+ih-(v/nice)*ih;
+  let g='';
+  for(let t=0;t<=4;t++){const gv=Math.round(nice*t/4),gy=y(gv);
+    g+='<line class="gridline" x1="'+padL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+gy.toFixed(1)+'"/>';
+    g+='<text x="'+(padL-6)+'" y="'+(gy+3).toFixed(1)+'" text-anchor="end">'+gv+'</text>';}
+  let bars='';
+  data.forEach((d,i)=>{const last=i===data.length-1, w=Math.max(bw-2.4,1), bx=x(i)+1.2;
+    const hh=(d.hits/nice)*ih, ch=(d.creates/nice)*ih, top=padT+ih-hh;
+    bars+='<rect class="h'+(last?'':' dim')+'" x="'+bx.toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(hh,0).toFixed(1)+'" rx="1.5"><title>'+d.day+': '+d.hits+' redirects</title></rect>';
+    if(d.creates) bars+='<rect class="c'+(last?'':' dim')+'" x="'+bx.toFixed(1)+'" y="'+(top-ch).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+ch.toFixed(1)+'" rx="1.5"><title>'+d.day+': '+d.creates+' created</title></rect>';
+    if(last) bars+='<circle class="cap" cx="'+(bx+w/2).toFixed(1)+'" cy="'+(top-ch-3).toFixed(1)+'" r="3.5"/>';});
+  const labs=[0,Math.floor(data.length/2),data.length-1].map(i=>{
+    const anc=i===0?'start':i===data.length-1?'end':'middle';
+    return '<text x="'+(x(i)+bw/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="'+anc+'">'+data[i].day.slice(5)+'</text>';}).join('');
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Redirects per day">'+
+    '<g>'+g+'</g>'+bars+
+    '<line class="base" x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'"/>'+labs+'</svg>'+
+    '<div class="legend"><span><i class="h"></i>redirects</span><span><i class="c"></i>links created</span></div>';
+}
+function barList(rows,opt){
+  opt=opt||{};
+  if(!rows.length) return '<p class="empty">'+(opt.empty||'nothing yet')+'</p>';
   const max=Math.max(1,...rows.map(r=>r.v));
   return '<div class="bars">'+rows.map(r=>
-    '<div><span class="l" title="'+esc(r.k)+'">'+label(r)+'</span><span class="b" style="width:'+(r.v/max*100)+'%"></span><span class="n">'+fmtN(r.v)+'</span></div>').join('')+'</div>';
+    '<div class="brow"><span class="lab">'+(opt.label?opt.label(r):esc(r.k))+'</span>'+
+    '<span class="val">'+fmtN(r.v)+'</span>'+
+    '<span class="track"><span class="fill'+(opt.bad?' bad':'')+'" style="width:'+Math.max(r.v/max*100,2)+'%"></span></span></div>').join('')+'</div>';
 }
 
 async function render(){
   for(const b of $('#tabs').children) b.classList.toggle('on',b.dataset.t===tab);
-  const v=$('#view'); v.innerHTML='<p class="mut">loading...</p>';
+  const v=$('#view'); v.innerHTML='<p class="empty">loading...</p>';
   try{
     if(tab==='overview') return renderOverview(v);
     if(tab==='links') return renderLinks(v);
     if(tab==='traffic') return renderTraffic(v);
     if(tab==='hosts') return renderHosts(v);
     if(tab==='activity') return renderActivity(v);
-  }catch(e){ v.innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+  }catch(e){ v.innerHTML=vhead(tab)+panel('<div class="msg err">'+esc(e.message)+'</div>'); }
 }
+
 async function renderOverview(v){
   const d=await api('overview?range='+range); const o=d.ops, s=d.summary;
-  $('#ver').textContent='v'+o.version+' \\u00b7 '+o.backend;
-  v.innerHTML='<div class="card"><h2>last '+s.rangeDays+' days</h2><div class="grid">'+
-    kpi(s.totals.hits,'redirects')+kpi(s.totals.creates,'links created')+kpi(s.totals.rejects,'rejected')+
-    kpi(o.links.total,'links total')+kpi(o.links.revoked,'revoked')+'</div>'+
-    '<div style="margin-top:1rem;color:var(--mut)">'+barChart(s.series)+
-    '<small>magenta = redirects, orange = created</small></div></div>'+
-    '<div class="card"><h2>service</h2><table>'+
-    tr('version',o.version)+tr('store backend',o.backend)+tr('store size',kib(o.storeBytes))+
-    tr('public base',o.base)+tr('uptime',Math.floor(o.uptimeSec/3600)+'h '+Math.floor(o.uptimeSec%3600/60)+'m')+
-    tr('hit counting',o.countHits?'on':'off')+tr('analytics',o.analyticsEnabled?'on':'off')+
-    tr('default link TTL',o.defaultTtlDays>0?o.defaultTtlDays+' days (SHORTENER_TTL_DAYS)':'never')+
-    tr('allowlist editable',o.hostsEditable?'yes':'no (set SHORTENER_HOSTS_FILE)')+
-    tr('last backup',o.lastBackup?ago(o.lastBackup):'unknown')+'</table></div>'+
-    (d.rejects.length?'<div class="card"><h2>why links were rejected</h2>'+bars(d.rejects.map(r=>({k:r.reason,v:r.count})),r=>esc(r.k))+'</div>':'');
+  health(o);
+  const stat=(n,k,rev)=>'<div class="stat'+(rev?' rev':'')+'"><div class="n">'+fmtN(n)+'</div><div class="k">'+k+'</div></div>';
+  const kv=[
+    ['Public base',esc(o.base)],
+    ['Store backend','<span class="ok">'+esc(o.backend)+'</span>'],
+    ['Store size',kib(o.storeBytes)],
+    ['Links',fmtN(o.links.total)+' total, '+fmtN(o.links.revoked)+' revoked'],
+    ['Hit counting',o.countHits?'<span class="ok">on</span>':'<span class="warn">off</span>'],
+    ['Analytics',o.analyticsEnabled?'<span class="ok">on</span>':'<span class="warn">off</span>'],
+    ['Default link TTL',o.defaultTtlDays>0?o.defaultTtlDays+' days':'never'],
+    ['Allowlist',o.hostsEditable?'editable':'read-only'],
+    ['Last backup',o.lastBackup?ago(o.lastBackup):'unknown'],
+    ['Uptime',Math.floor(o.uptimeSec/86400)+'d '+Math.floor(o.uptimeSec%86400/3600)+'h'],
+  ];
+  v.innerHTML=vhead('Overview')+
+    '<div class="grid stats">'+
+      stat(s.totals.hits,'redirects, '+s.rangeDays+'d')+
+      stat(s.totals.creates,'links created, '+s.rangeDays+'d')+
+      stat(s.totals.rejects,'rejected, '+s.rangeDays+'d')+
+      stat(o.links.total-o.links.revoked,'active links')+
+      stat(o.links.revoked,'revoked',true)+
+    '</div>'+
+    '<div class="grid two" style="margin-top:16px">'+
+      panel(cardhead('Redirects per day','last '+s.rangeDays+' days')+chart(s.series))+
+      panel(cardhead('Service')+'<dl class="kv">'+kv.map(r=>'<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>').join('')+'</dl>')+
+    '</div>'+
+    panel(cardhead('Why links were rejected','last '+s.rangeDays+' days')+
+      barList(d.rejects.map(r=>({k:r.reason,v:r.count})),{bad:true,empty:'none rejected'}));
 }
-const kpi=(n,l)=>'<div><span class="kpi">'+fmtN(n)+'<small>'+l+'</small></span></div>';
-const tr=(k,x)=>'<tr><td class="mut">'+k+'</td><td>'+esc(x)+'</td></tr>';
 
 let lsort={k:'created',d:-1};
-const revealed=new Set();      // codes whose full destination the operator chose to show
-const urlCache={};             // code -> revealed URL
-const hostOf=u=>{try{return new URL(u).host}catch{return '?'}};
+const revealed=new Set();
+const urlCache={};
 async function renderLinks(v){
   const d=await api('links');
-  v.innerHTML='<div class="card"><div class="row" style="margin-bottom:.6rem">'+
-    '<input id="nu" placeholder="https://your-viewer/...#token" style="flex:1;min-width:220px">'+
-    '<input id="ns" placeholder="slug (optional)" size="12">'+
-    '<select id="nm"><option value="code">code</option><option value="words">words</option></select>'+
-    '<input id="nt" type="number" min="0" placeholder="TTL days" title="0 = never; blank = server default" size="8" style="width:5rem">'+
-    '<button class="act" id="mk">create</button></div><div id="mkmsg"></div>'+
-    '<div class="row" style="margin-bottom:.6rem"><input id="lq" placeholder="filter code or host" style="flex:1">'+
-    '<button class="act" id="export">export JSON</button>'+
-    '<button class="act d" id="purge">purge old 0-hit</button></div>'+
-    '<p class="mut" style="margin:.2rem 0 .8rem">The list shows the target host only. <em>show link</em> reveals one stored destination (the pages someone bundled) on request.</p>'+
-    '<div id="ltab"></div></div>';
-  const tgtCell=r=>{
+  badge('links',fmtN(d.links.length));
+  v.innerHTML=vhead('Links')+panel(
+    '<div class="toolbar">'+
+      '<input class="grow" id="nu" placeholder="https://your-viewer/...#token" aria-label="target URL">'+
+      '<input class="slug" id="ns" placeholder="slug (optional)" aria-label="custom slug">'+
+      '<select id="nm" aria-label="code style"><option value="code">code</option><option value="words">words</option></select>'+
+      '<input class="ttl" id="nt" type="number" min="0" placeholder="TTL" title="0 = never; blank = server default" aria-label="TTL days">'+
+      '<button class="act primary" id="mk">Create link</button>'+
+      '<span class="push"><button class="act" id="export">Export JSON</button>'+
+      '<button class="act d" id="purge">Purge old 0-hit</button></span>'+
+    '</div>'+
+    '<div id="mkmsg"></div>'+
+    '<div class="toolbar" style="margin-bottom:0">'+
+      '<input class="grow" id="lq" placeholder="filter by slug or host" aria-label="filter">'+
+    '</div>'+
+    '<p class="hint">The list shows the target host only. <em>show link</em> reveals one stored destination (the pages someone bundled) on request. Revoke is a soft delete: the short link 404s but the row stays and the slug cannot be reused.</p>'
+  )+'<div class="tablewrap" id="ltab" style="margin-top:16px"></div>';
+
+  const filtered=()=>{
+    const q=$('#lq').value.toLowerCase();
+    let rows=d.links.slice();
+    if(q)rows=rows.filter(r=>r.code.toLowerCase().includes(q)||(r.host||'').toLowerCase().includes(q));
+    rows.sort((a,b)=>{const x=a[lsort.k]||0,y=b[lsort.k]||0;return (x>y?1:x<y?-1:0)*lsort.d});
+    return rows;
+  };
+  const tgt=r=>{
     if(revealed.has(r.code)){
       const u=urlCache[r.code];
       return u
         ? '<span class="u" title="'+esc(u)+'">'+esc(u)+'</span> <a class="act xs" href="/'+encodeURIComponent(r.code)+'" target="_blank" rel="noopener">open</a> <button class="act xs" data-hide="'+esc(r.code)+'">hide</button>'
-        : '<span class="mut">loading...</span>';
+        : '<span class="note">loading...</span>';
     }
-    return '<span class="mut">'+esc(r.host||'?')+'</span> <button class="act xs" data-reveal="'+esc(r.code)+'">show link</button>';
+    return '<span class="u">'+esc(r.host||'?')+'</span> <button class="act xs" data-reveal="'+esc(r.code)+'">show link</button>';
   };
+  const status=r=>{
+    if(r.revoked) return chip('rev','revoked')+'<span class="rage">'+ago(r.revoked)+'</span>';
+    if(r.expires) return chip('exp','expires')+'<span class="rage">'+until(r.expires)+'</span>';
+    return chip('live','live');
+  };
+  const cols=[['code','Slug',0],['','Target',0],['mode','Style',0],['hits','Hits',1],['lastHit','Last hit',1],['created','Created',1],['','Status',0],['','',1]];
   const draw=()=>{
-    let rows=d.links.slice();
-    const q=$('#lq').value.toLowerCase();
-    if(q)rows=rows.filter(r=>r.code.toLowerCase().includes(q)||(r.host||'').toLowerCase().includes(q));
-    rows.sort((a,b)=>{const x=a[lsort.k],y=b[lsort.k];return (x>y?1:x<y?-1:0)*lsort.d});
-    $('#ltab').innerHTML='<table><thead><tr>'+
-      ['code','host','mode','hits','lastHit','created','expires','revoked',''].map(h=>h?'<th data-k="'+h+'">'+h+'</th>':'<th></th>').join('')+
-      '</tr></thead><tbody>'+rows.map(r=>'<tr class="'+(r.revoked?'rv':'')+'">'+
-      '<td><code>'+esc(r.code)+'</code></td>'+
-      '<td>'+tgtCell(r)+'</td><td>'+r.mode+'</td><td>'+fmtN(r.hits)+'</td>'+
-      '<td class="mut">'+(r.lastHit?ago(r.lastHit):'--')+'</td><td class="mut">'+ago(r.created)+'</td>'+
-      '<td class="mut">'+(r.expires?until(r.expires):'never')+'</td>'+
-      '<td class="mut">'+(r.revoked?ago(r.revoked):'')+'</td>'+
-      '<td class="row">'+(r.revoked
-        ?'<button class="act" data-un="'+esc(r.code)+'">restore</button>'
-        :'<button class="act d" data-rv="'+esc(r.code)+'">revoke</button>')+
-      (r.revoked?'':(r.expires
-        ?'<button class="act" data-keep="'+esc(r.code)+'">keep</button>'
-        :'<button class="act" data-expire="'+esc(r.code)+'">expire</button>'))+
-      '<button class="act d" data-del="'+esc(r.code)+'">del</button></td></tr>').join('')+
-      '</tbody></table><p class="mut">'+rows.length+' shown</p>';
+    const rows=filtered();
+    $('#ltab').innerHTML='<table><thead><tr>'+cols.map(c=>
+      '<th class="'+(c[2]?'r ':'')+(c[0]?'sortable':'')+'"'+(c[0]?' data-k="'+c[0]+'"':'')+'>'+c[1]+(c[0]===lsort.k?(lsort.d>0?' \\u2191':' \\u2193'):'')+'</th>').join('')+'</tr></thead><tbody>'+
+      (rows.length?rows.map(r=>'<tr class="'+(r.revoked?'rv':'')+'">'+
+        '<td><span class="slug">/'+esc(r.code)+'</span></td>'+
+        '<td class="target"><span class="t">'+tgt(r)+'</span></td>'+
+        '<td>'+chip(r.mode,r.mode)+'</td>'+
+        '<td class="r"><span class="num">'+fmtN(r.hits)+'</span></td>'+
+        '<td class="r"><span class="ago">'+(r.lastHit?ago(r.lastHit):'not yet')+'</span></td>'+
+        '<td class="r"><span class="ago">'+ago(r.created)+'</span></td>'+
+        '<td>'+status(r)+'</td>'+
+        '<td class="r"><div class="rowact">'+(r.revoked
+          ?'<button class="act" data-un="'+esc(r.code)+'">Restore</button>'
+          :'<button class="act" data-rv="'+esc(r.code)+'">Revoke</button>'+
+           (r.expires?'<button class="act" data-keep="'+esc(r.code)+'">Keep</button>'
+                     :'<button class="act" data-expire="'+esc(r.code)+'">Expire</button>'))+
+        '<button class="act d" data-del="'+esc(r.code)+'">Delete</button></div></td></tr>').join('')
+        :'<tr><td colspan="8"><span class="empty">no links match</span></td></tr>')+
+      '</tbody></table>';
   };
   draw();
-  $('#ltab').onclick=async e=>{
-    const t=e.target;
-    const rev=t.dataset.reveal,hide=t.dataset.hide,rv=t.dataset.rv,un=t.dataset.un,del=t.dataset.del,keep=t.dataset.keep,exp=t.dataset.expire;
-    try{
-      if(rev){
-        revealed.add(rev);draw();
-        try{const r=await api('links/'+encodeURIComponent(rev)+'/url');urlCache[rev]=r.url}
-        catch(err){urlCache[rev]='(error: '+err.message+')'}
-        draw();return;
-      }
-      if(hide){revealed.delete(hide);draw();return;}
-      if(rv){await api('links/'+encodeURIComponent(rv)+'/revoke',{method:'POST'});row(rv).revoked=Date.now()}
-      else if(un){await api('links/'+encodeURIComponent(un)+'/unrevoke',{method:'POST'});row(un).revoked=0}
-      else if(keep){await api('links/'+encodeURIComponent(keep)+'/keep',{method:'POST'});row(keep).expires=0}
-      else if(exp){
-        const days=prompt('Expire this link in how many days? (0 = now)','0');if(days===null)return;
-        const r=await api('links/'+encodeURIComponent(exp)+'/expire',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({days:+days})});
-        row(exp).expires=r.expires||Date.now()-1;
-      }
-      else if(del){if(!confirm('Delete '+del+' permanently?'))return;await api('links/'+encodeURIComponent(del),{method:'DELETE'});d.links=d.links.filter(r=>r.code!==del)}
-      else return;
-      draw();
-    }catch(err){alert(err.message)}
-  };
   const row=c=>d.links.find(r=>r.code===c);
-  $('#ltab').addEventListener('click',e=>{const k=e.target.dataset.k;if(k){lsort={k,d:lsort.k===k?-lsort.d:1};draw()}});
+  $('#ltab').addEventListener('click',async e=>{
+    const th=e.target.closest('th.sortable');
+    if(th){const k=th.dataset.k;lsort={k,d:lsort.k===k?-lsort.d:1};draw();return}
+    const t=e.target.closest('button, a'); if(!t)return;
+    const ds=t.dataset;
+    try{
+      if(ds.reveal){revealed.add(ds.reveal);draw();
+        try{const r=await api('links/'+encodeURIComponent(ds.reveal)+'/url');urlCache[ds.reveal]=r.url}
+        catch(err){urlCache[ds.reveal]='(error: '+err.message+')'}
+        draw();return;}
+      if(ds.hide){revealed.delete(ds.hide);draw();return;}
+      if(ds.rv){await api('links/'+encodeURIComponent(ds.rv)+'/revoke',{method:'POST'});row(ds.rv).revoked=Date.now()}
+      else if(ds.un){await api('links/'+encodeURIComponent(ds.un)+'/unrevoke',{method:'POST'});row(ds.un).revoked=0}
+      else if(ds.keep){await api('links/'+encodeURIComponent(ds.keep)+'/keep',{method:'POST'});row(ds.keep).expires=0}
+      else if(ds.expire){
+        const days=prompt('Expire this link in how many days? (0 = now)','0');if(days===null)return;
+        const r=await api('links/'+encodeURIComponent(ds.expire)+'/expire',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({days:+days})});
+        row(ds.expire).expires=r.expires||Date.now()-1;}
+      else if(ds.del){if(!confirm('Delete '+ds.del+' permanently?'))return;await api('links/'+encodeURIComponent(ds.del),{method:'DELETE'});d.links=d.links.filter(r=>r.code!==ds.del)}
+      else return;
+      draw();badge('links',fmtN(d.links.length));
+    }catch(err){alert(err.message)}
+  });
   $('#lq').oninput=draw;
-  $('#export').onclick=()=>{
-    if(confirm('The export file contains every stored destination URL (all bundled pages). Download it?'))
-      location.href='/admin/api/export';
-  };
+  $('#export').onclick=()=>{ if(confirm('The export file contains every stored destination URL (all bundled pages). Download it?')) location.href='/admin/api/export'; };
   $('#mk').onclick=async()=>{
     try{
       const tt=$('#nt').value.trim();
       const payload={url:$('#nu').value,slug:$('#ns').value,mode:$('#nm').value};
       if(tt!=='')payload.ttlDays=+tt;
       const r=await api('links',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
-      $('#mkmsg').innerHTML='<div class="msg ok">'+esc(r.shortUrl)+(r.reused?' (existing)':'')+(r.expires?' &middot; expires '+new Date(r.expires).toISOString().slice(0,10):'')+'</div>';
+      $('#mkmsg').innerHTML='<div class="msg ok">'+esc(r.shortUrl)+(r.reused?' (existing)':'')+(r.expires?' \\u00b7 expires '+new Date(r.expires).toISOString().slice(0,10):'')+'</div>';
       d.links.unshift({code:r.code,host:hostOf($('#nu').value),mode:r.mode||$('#nm').value,hits:0,lastHit:0,created:Date.now(),expires:r.expires||0,revoked:0});
-      $('#nu').value=$('#ns').value=$('#nt').value='';draw();
+      $('#nu').value=$('#ns').value=$('#nt').value='';draw();badge('links',fmtN(d.links.length));
     }catch(err){$('#mkmsg').innerHTML='<div class="msg err">'+esc(err.message)+'</div>'}
   };
   $('#purge').onclick=async()=>{
@@ -569,46 +755,68 @@ async function renderLinks(v){
       alert(r.deleted+' deleted');render();}catch(err){alert(err.message)}
   };
 }
+
 async function renderTraffic(v){
-  const d=await api('stats?range='+range);
-  v.innerHTML='<div class="card"><h2>daily</h2><div style="color:var(--mut)">'+barChart(d.summary.series)+'</div></div>'+
-    '<div class="card"><h2>busiest links ('+range+'d)</h2>'+bars(d.topLinks.map(r=>({k:r.code,v:r.hits})),r=>'<code>'+esc(r.k)+'</code>')+'</div>'+
-    '<div class="card"><h2>referrers ('+range+'d)</h2>'+bars(d.referrers.map(r=>({k:r.host,v:r.hits})),r=>esc(r.k))+'</div>'+
-    '<div class="card"><h2>browsers ('+range+'d)</h2>'+bars((d.browsers||[]).map(r=>({k:r.browser,v:r.hits})),r=>esc(r.k))+'</div>'+
-    (d.rejects.length?'<div class="card"><h2>rejected ('+range+'d)</h2>'+bars(d.rejects.map(r=>({k:r.reason,v:r.count})),r=>esc(r.k))+'</div>':'')+
-    '<div class="card"><h2>shared domains</h2>'+
-      '<p class="mut" style="margin:.2rem 0 .6rem">Decodes every stored link now and counts the registrable domain of each bundled page (<code>reddit.com</code>, never the post). Computed on request, kept nowhere.</p>'+
-      '<button class="act" id="analyze">analyze</button><div id="domres" style="margin-top:.7rem"></div></div>';
+  const d=await api('stats?range='+range); const s=d.summary;
+  v.innerHTML=vhead('Traffic')+
+    panel(cardhead('Redirects per day','last '+s.rangeDays+' days')+chart(s.series))+
+    '<div class="grid two" style="margin-top:16px">'+
+      panel(cardhead('Busiest links','last '+range+'d')+barList(d.topLinks.map(r=>({k:r.code,v:r.hits})),{label:r=>'<code>'+esc(r.k)+'</code>'}))+
+      panel(cardhead('Referrers','host only')+barList(d.referrers.map(r=>({k:r.host,v:r.hits})),{empty:'no referrers'}))+
+    '</div>'+
+    '<div class="grid two" style="margin-top:16px">'+
+      panel(cardhead('Browsers','last '+range+'d')+barList((d.browsers||[]).map(r=>({k:r.browser,v:r.hits})),{empty:'no data'}))+
+      panel(cardhead('Why links were rejected','last '+range+'d')+barList(d.rejects.map(r=>({k:r.reason,v:r.count})),{bad:true,empty:'none rejected'}))+
+    '</div>'+
+    panel(cardhead('Shared domains','decoded on request')+
+      '<p class="hint" style="margin-top:0">Decodes every stored link now and counts the registrable domain of each bundled page (<code>reddit.com</code>, never the post). Computed on request, kept nowhere.</p>'+
+      '<button class="act" id="analyze" style="margin-top:12px">Analyze</button><div id="domres" style="margin-top:14px"></div>');
   $('#analyze').onclick=async()=>{
-    $('#domres').innerHTML='<span class="mut">decoding...</span>';
+    $('#domres').innerHTML='<span class="note">decoding...</span>';
     try{
       const r=await api('domains');
-      $('#domres').innerHTML='<p class="mut">'+r.decoded+' of '+r.links+' links decoded ('+r.encrypted+' encrypted, '+r.undecodable+' undecodable), '+r.pages+' pages, '+r.uniqueDomains+' domains</p>'+
-        bars(r.domains.slice(0,40).map(x=>({k:x.domain,v:x.pages,n:x.links})),x=>esc(x.k)+' <span class="mut">('+x.n+' link'+(x.n===1?'':'s')+')</span>');
-    }catch(err){$('#domres').innerHTML='<span class="mut">'+esc(err.message)+'</span>'}
+      $('#domres').innerHTML='<p class="hint" style="margin:0 0 12px">'+r.decoded+' of '+r.links+' links decoded ('+r.encrypted+' encrypted, '+r.undecodable+' undecodable) \\u00b7 '+r.pages+' pages \\u00b7 '+r.uniqueDomains+' domains</p>'+
+        barList(r.domains.slice(0,40).map(x=>({k:x.domain,v:x.pages,n:x.links})),{label:x=>esc(x.k)+' <span class="sub">('+x.n+' link'+(x.n===1?'':'s')+')</span>'});
+    }catch(err){$('#domres').innerHTML='<span class="note">'+esc(err.message)+'</span>'}
   };
 }
+
 async function renderHosts(v){
   const d=await api('hosts');
-  v.innerHTML='<div class="card"><h2>allowed redirect-target hosts</h2>'+
-    (d.editable?'<p class="mut">One host per line. localhost / 127.0.0.1 are always allowed.</p>'+
-      '<textarea id="ha" rows="8" style="width:100%;font-family:ui-monospace,monospace">'+esc(d.hosts.join('\\n'))+'</textarea>'+
-      '<div class="row" style="margin-top:.6rem"><button class="act" id="sh">save</button><span id="hmsg" class="mut"></span></div>'
-      :'<div class="msg err">Read-only: set <code>SHORTENER_HOSTS_FILE</code> in the service to edit here.</div><ul>'+
-       d.hosts.map(h=>'<li><code>'+esc(h)+'</code></li>').join('')+'</ul>')+'</div>';
+  badge('hosts',d.hosts.length);
+  v.innerHTML=vhead('Allowed redirect targets')+panel(
+    cardhead('Host allowlist',d.editable?'editable, hot-reloads':'read-only')+
+    (d.editable
+      ?'<p class="hint" style="margin-top:0">One host per line. A short link may only redirect to a host on this list -- this is what keeps the shortener from being usable for phishing. <code>localhost</code> and <code>127.0.0.1</code> are always allowed. Saving reloads the running service, no restart.</p>'+
+       '<textarea id="ha" rows="7" spellcheck="false" style="margin-top:12px">'+esc(d.hosts.join('\\n'))+'</textarea>'+
+       '<div class="toolbar" style="margin:12px 0 0"><button class="act primary" id="sh">Save allowlist</button><span class="note" id="hmsg"></span></div>'
+      :'<div class="msg err">Read-only -- set <code>SHORTENER_HOSTS_FILE</code> in the service to edit here.</div>'+
+       '<div class="bars" style="margin-top:12px">'+d.hosts.map(h=>'<div class="brow"><span class="lab"><code>'+esc(h)+'</code></span></div>').join('')+'</div>')
+  );
   if(d.editable)$('#sh').onclick=async()=>{
     try{const r=await api('hosts',{method:'PUT',headers:{'content-type':'application/json'},
       body:JSON.stringify({hosts:$('#ha').value.split('\\n').map(s=>s.trim()).filter(Boolean)})});
-      $('#hmsg').textContent='saved -- '+r.hosts.length+' hosts active';
+      $('#hmsg').textContent='saved -- '+r.hosts.length+' hosts active';badge('hosts',r.hosts.length);
     }catch(err){$('#hmsg').textContent=err.message}
   };
 }
+
 async function renderActivity(v){
   const d=await api('stats?range='+range);
-  v.innerHTML='<div class="card"><h2>recent events</h2><table><thead><tr><th>when</th><th>type</th><th>detail</th></tr></thead><tbody>'+
-    d.recent.map(e=>'<tr><td class="mut">'+ago(e.t)+'</td><td>'+e.type+'</td><td>'+
-      esc(e.type==='hit'?e.code+'  <-  '+(e.host||'(direct)'):e.type==='create'?e.code+' ('+(e.mode||'code')+')':e.reason+(e.host?'  '+e.host:''))+
-    '</td></tr>').join('')+'</tbody></table></div>';
+  const detail=e=>{
+    if(e.type==='hit'){const h=e.host&&e.host!=='(direct)';return '<code>'+esc(e.code)+'</code> <span class="from">'+(h?'referred by '+esc(e.host):'direct / no referrer')+'</span>';}
+    if(e.type==='create') return '<code>'+esc(e.code)+'</code> <span class="from">'+esc(e.mode||'code')+' style</span>';
+    return '<code>'+esc(e.reason)+'</code>'+(e.host?' <span class="from">tried '+esc(e.host)+'</span>':'');
+  };
+  v.innerHTML=vhead('Recent activity')+
+    '<div class="tablewrap"><table class="feed"><thead><tr><th style="width:120px">When</th><th style="width:90px">Event</th><th>Detail</th></tr></thead><tbody>'+
+    (d.recent.length?d.recent.map(e=>'<tr><td><span class="ago">'+ago(e.t)+'</span></td>'+
+      '<td><span class="ev"><span class="k '+e.type+'"></span>'+e.type+'</span></td>'+
+      '<td class="detail">'+detail(e)+'</td></tr>').join('')
+      :'<tr><td colspan="3"><span class="empty">no events yet</span></td></tr>')+
+    '</tbody></table></div>'+
+    '<p class="hint">The last few hundred events, in memory. Redirects log the referring host only -- never a path, query string or IP.</p>';
 }
+
 render();
 </script></body></html>`;

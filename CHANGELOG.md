@@ -6,6 +6,12 @@ Notable changes. Dates are `YYYY-MM-DD`.
 
 ### Changed
 
+- **Admin panel redesign.** The `/admin` page keeps every feature and API call
+  but gets a new visual language: a sticky header with a health pill, tabbed
+  nav with count badges, a KPI stat row, a gridded redirects-per-day chart with
+  a legend, a key/value service panel, chip-tagged link rows, and an activity
+  feed with typed markers. Light and dark via `prefers-color-scheme`. Still one
+  self-contained HTML page, no external fonts, scripts, or styles.
 - **Payload ceiling raised to 1 MB.** `SHORTENER_MAX_URL` now defaults to
   `1048576` (was `262144`) and `SHORTENER_MAX_BODY` to `1114112` (was `327680`).
   A Tab Share collection is a few KB, so this is pure headroom for the extreme
