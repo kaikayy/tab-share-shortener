@@ -3,6 +3,10 @@
 All notable changes to the Tab Share link shortener. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); dates are `YYYY-MM-DD`.
 
+## [Unreleased]
+
+_No entries yet._
+
 ## [0.4.0] - 2026-09-03
 
 ### Changed
