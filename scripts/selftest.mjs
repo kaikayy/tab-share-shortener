@@ -349,6 +349,42 @@ test("admin: create then revoke -> the link 404s but the row stays", async () =>
   assert.equal((await api("GET", "/adm-demo")).status, 302);
 });
 
+test("admin: bulk revoke / delete by filter", async () => {
+  for (const n of [1, 2, 3]) {
+    await admin("POST", "/admin/api/links", { json: { url: `${VIEWER}#bulk${n}`, slug: `bk-${n}` } });
+  }
+  await admin("POST", "/admin/api/links", { json: { url: `${VIEWER}#keepme`, slug: "bk-keep" } });
+
+  // empty filter is refused -- there is no "act on every link"
+  assert.equal((await admin("POST", "/admin/api/links/bulk", { json: { op: "delete", q: "" } })).status, 400);
+  assert.equal((await admin("POST", "/admin/api/links/bulk", { json: { op: "nope", q: "bk-" } })).status, 400);
+
+  const rev = JSON.parse((await admin("POST", "/admin/api/links/bulk", { json: { op: "revoke", q: "bk-" } })).text);
+  assert.equal(rev.matched, 4);
+  assert.equal(rev.affected, 4);
+  assert.equal((await api("GET", "/bk-1")).status, 404);
+  assert.equal((await api("GET", "/bk-keep")).status, 404);
+
+  // a narrower filter: only the three, restored, then hard-deleted
+  assert.equal(
+    JSON.parse((await admin("POST", "/admin/api/links/bulk", { json: { op: "unrevoke", q: "bk-1" } })).text).affected,
+    1,
+  );
+  const del = JSON.parse((await admin("POST", "/admin/api/links/bulk", { json: { op: "delete", q: "bk-" } })).text);
+  assert.equal(del.matched, 4);
+  assert.equal(JSON.parse((await admin("GET", "/admin/api/links?q=bk-")).text).links.length, 0);
+});
+
+test("admin: /admin/metrics is Prometheus text behind the token", async () => {
+  assert.equal((await api("GET", "/admin/metrics")).status, 404); // no token -> not here
+  const m = await admin("GET", "/admin/metrics");
+  assert.equal(m.status, 200);
+  assert.match(m.headers.get("content-type") || "", /text\/plain/);
+  assert.match(m.text, /# TYPE tabshare_shortener_links gauge/);
+  assert.match(m.text, /# TYPE tabshare_shortener_redirects_total counter/);
+  assert.match(m.text, /^tabshare_shortener_uptime_seconds \d+$/m);
+});
+
 test("admin: the link list carries the target host, not the destination URL", async () => {
   await admin("POST", "/admin/api/links", { json: { url: `${VIEWER}#host_only_probe`, slug: "host-probe" } });
   const list = JSON.parse((await admin("GET", "/admin/api/links?q=host-probe")).text);

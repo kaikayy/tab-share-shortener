@@ -76,8 +76,10 @@ Then a reverse proxy terminates HTTPS:
 ```nginx
 server {
     server_name s.example.com;
-    # the compat GET endpoint puts the long link in the request line
+    # the compat GET endpoint puts the long link in the request line; the POST
+    # endpoint puts it in the body -- raise the limits for whichever you use
     large_client_header_buffers 8 64k;
+    client_max_body_size 2m;
 
     location / {
         proxy_pass http://127.0.0.1:8779;
@@ -86,6 +88,13 @@ server {
     }
 }
 ```
+
+On **Apache** (`mod_proxy`), the equivalents are `LimitRequestLine 65536` (for
+the GET compat path) and `LimitRequestBody 2097152`, plus
+`ProxyPass / http://127.0.0.1:8779/` and `RemoteIPHeader X-Forwarded-For`. A
+KeyHelp box already runs Apache -- add these to the vhost include, not a fresh
+`server {}`. Without them a big link gets a `414` (GET) or `413` (POST) from the
+proxy before it reaches the service.
 
 ### Storage
 
@@ -163,12 +172,16 @@ For the truncated IP to be the visitor's (not your proxy's), also set
 ### Admin panel
 
 `/admin` gives you a link table (with **revoke** -- a soft delete that 404s the
-link but keeps the row), manual/vanity link creation, an editor for the host
-allowlist, and redirect analytics (daily counts, busiest links, referrer
-*hosts*, **browser family + major version**, why links were rejected), plus an
-on-request histogram of the **registrable domains** people bundle (`reddit.com`,
-never the post -- computed when you click, kept nowhere). It is one page, no
-build step, no external requests.
+link but keeps the row -- and **bulk revoke / delete by filter**), manual/vanity
+link creation, an editor for the host allowlist, and redirect analytics (daily
+counts, busiest links, referrer *hosts*, **browser family + major version**, why
+links were rejected), plus an on-request histogram of the **registrable domains**
+people bundle (`reddit.com`, never the post -- computed when you click, kept
+nowhere). It is one page, no build step, no external requests.
+
+`GET /admin/metrics` serves the same numbers as Prometheus text (behind the same
+token) -- point a scraper at `https://your-shortener/admin/metrics` with
+`Authorization: Bearer <TOKEN>`.
 
 The link table shows the **target host only**. Revealing a stored destination
 (for a Tab Share link, the pages someone bundled) is a deliberate per-link

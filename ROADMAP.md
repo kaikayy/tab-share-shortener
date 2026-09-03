@@ -42,11 +42,18 @@ the way `node:sqlite` is now. Same `openStore()` surface. The analytics store
 
 ## Smaller
 
-- Admin: bulk revoke / delete by filter.
-- Optional Prometheus-style `/metrics` endpoint (behind the admin token).
+- (nothing queued)
 
 ## Done
 
+- **Admin: bulk revoke / delete by filter** (0.4.5): `Revoke matching` /
+  `Delete matching` in the Links tab act on every link the filter selects
+  (code or target-host substring); `POST /admin/api/links/bulk { op, q }`, a
+  non-empty filter is required.
+- **`GET /admin/metrics`** (0.4.5): Prometheus text exposition behind the admin
+  token -- store gauges + activity counters over the analytics retention window.
+- **Admin panel redesign** (0.4.0): same features, new layout -- KPI row,
+  gridded chart, chip-tagged rows, activity feed. Still one self-contained page.
 - **Per-link expiry** (0.3.0): 30-day default TTL from creation
   (`SHORTENER_TTL_DAYS`), a `keepToken` returned at creation + `POST /api/keep`
   to pin, and keep/expire controls + a "default link TTL" row in the admin panel.

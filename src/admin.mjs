@@ -83,6 +83,10 @@ function sendHtml(res, status, body) {
   res.writeHead(status, { "content-type": "text/html; charset=utf-8", ...NOSTORE });
   res.end(body);
 }
+function sendText(res, status, body, contentType = "text/plain; charset=utf-8") {
+  res.writeHead(status, { "content-type": contentType, ...NOSTORE });
+  res.end(body);
+}
 function notFound(res) {
   res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
   res.end("not found");
@@ -160,6 +164,49 @@ function ops(store) {
   };
 }
 
+/**
+ * Prometheus text exposition. Gauges for the current store; counters for the
+ * activity totals over the analytics retention window (SHORTENER_ANALYTICS_DAYS,
+ * 365 by default) -- they reset only when a day ages out of that window.
+ */
+function metricsText(store) {
+  const s = store.stats();
+  const life = analytics.summary(config.analyticsRetentionDays);
+  const out = [];
+  const metric = (name, help, type, value) => {
+    out.push(`# HELP ${name} ${help}`, `# TYPE ${name} ${type}`, `${name} ${value}`);
+  };
+  metric("tabshare_shortener_links", "Stored short links (revoked rows included)", "gauge", s.total);
+  metric("tabshare_shortener_links_revoked", "Revoked short links (row kept, code 404s)", "gauge", s.revoked || 0);
+  metric("tabshare_shortener_links_expiring", "Links with a finite expiry set", "gauge", s.expiring || 0);
+  metric("tabshare_shortener_store_bytes", "Link store size on disk", "gauge", storeSize());
+  metric(
+    "tabshare_shortener_uptime_seconds",
+    "Seconds since this process started",
+    "gauge",
+    Math.round((Date.now() - BOOT) / 1000),
+  );
+  metric(
+    "tabshare_shortener_redirects_total",
+    `Redirects served (last ${life.rangeDays}d retained)`,
+    "counter",
+    life.totals.hits,
+  );
+  metric(
+    "tabshare_shortener_creates_total",
+    `Short links created (last ${life.rangeDays}d retained)`,
+    "counter",
+    life.totals.creates,
+  );
+  metric(
+    "tabshare_shortener_rejects_total",
+    `Rejected shorten requests (last ${life.rangeDays}d retained)`,
+    "counter",
+    life.totals.rejects,
+  );
+  return out.join("\n") + "\n";
+}
+
 /* ------------------------------ router ------------------------------ */
 
 /**
@@ -226,6 +273,36 @@ export async function handleAdmin(req, res, urlObj, { store }) {
     if (method === "POST" && p === "/admin/api/links") {
       const body = await readBody(req);
       return createLink(res, store, body), true;
+    }
+
+    // Bulk revoke / restore / delete every link matching a filter (code or
+    // target-host substring, same match as the ?q= list filter). A non-empty
+    // filter is required -- there is deliberately no "act on every link".
+    if (method === "POST" && p === "/admin/api/links/bulk") {
+      const body = await readBody(req);
+      const op = String(body.op || "");
+      const q = String(body.q || "").trim().toLowerCase();
+      if (!["revoke", "unrevoke", "delete"].includes(op)) {
+        return sendJson(res, 400, { error: "op must be revoke, unrevoke or delete" }), true;
+      }
+      if (!q) {
+        return sendJson(res, 400, { error: "a non-empty filter is required" }), true;
+      }
+      const matches = store.list().filter((r) => {
+        if (r.code.toLowerCase().includes(q)) return true;
+        try {
+          return new URL(r.url).host.toLowerCase().includes(q);
+        } catch {
+          return false;
+        }
+      });
+      let affected = 0;
+      for (const r of matches) {
+        const ok =
+          op === "delete" ? store.delete(r.code) : op === "revoke" ? store.revoke(r.code) : store.unrevoke(r.code);
+        if (ok) affected++;
+      }
+      return sendJson(res, 200, { op, matched: matches.length, affected }), true;
     }
 
     const linkOp = /^\/admin\/api\/links\/([^/]+)(?:\/(revoke|unrevoke|stats|url|keep|expire))?$/.exec(p);
@@ -296,6 +373,12 @@ export async function handleAdmin(req, res, urlObj, { store }) {
     // registrable domain of each page. Computed now, kept nowhere.
     if (method === "GET" && p === "/admin/api/domains") {
       return sendJson(res, 200, domainHistogram(store)), true;
+    }
+
+    // Prometheus text exposition, behind the same admin token. A scraper points
+    // at <base>/admin/metrics with `Authorization: Bearer <token>`.
+    if (method === "GET" && p === "/admin/metrics") {
+      return sendText(res, 200, metricsText(store), "text/plain; version=0.0.4; charset=utf-8"), true;
     }
 
     if (method === "GET" && p === "/admin/api/export") {
@@ -628,6 +711,7 @@ async function renderOverview(v){
     ['Allowlist',o.hostsEditable?'editable':'read-only'],
     ['Last backup',o.lastBackup?ago(o.lastBackup):'unknown'],
     ['Uptime',Math.floor(o.uptimeSec/86400)+'d '+Math.floor(o.uptimeSec%86400/3600)+'h'],
+    ['Metrics','<a href="/admin/metrics">/admin/metrics</a> <span class="sub">(Prometheus)</span>'],
   ];
   v.innerHTML=vhead('Overview')+
     '<div class="grid stats">'+
@@ -664,8 +748,12 @@ async function renderLinks(v){
     '<div id="mkmsg"></div>'+
     '<div class="toolbar" style="margin-bottom:0">'+
       '<input class="grow" id="lq" placeholder="filter by slug or host" aria-label="filter">'+
+      '<span class="push">'+
+        '<button class="act" id="brev" title="Revoke every link matching the filter">Revoke matching</button>'+
+        '<button class="act d" id="bdel" title="Delete every link matching the filter">Delete matching</button>'+
+      '</span>'+
     '</div>'+
-    '<p class="hint">The list shows the target host only. <em>show link</em> reveals one stored destination (the pages someone bundled) on request. Revoke is a soft delete: the short link 404s but the row stays and the slug cannot be reused.</p>'
+    '<p class="hint">The list shows the target host only. <em>show link</em> reveals one stored destination (the pages someone bundled) on request. Revoke is a soft delete: the short link 404s but the row stays and the slug cannot be reused. <em>Revoke / Delete matching</em> act on every link the filter above selects (a filter is required).</p>'
   )+'<div class="tablewrap" id="ltab" style="margin-top:16px"></div>';
 
   const filtered=()=>{
@@ -754,6 +842,23 @@ async function renderLinks(v){
     try{const r=await api('purge',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({days:+days})});
       alert(r.deleted+' deleted');render();}catch(err){alert(err.message)}
   };
+  const bulk=async op=>{
+    const q=$('#lq').value.trim();
+    if(!q)return alert('Type a filter first -- bulk actions only touch matching links.');
+    const rows=filtered().filter(r=>op==='delete'?true:!r.revoked);
+    if(!rows.length)return alert('Nothing matches "'+q+'".');
+    const verb=op==='delete'?'Delete':'Revoke';
+    if(!confirm(verb+' '+rows.length+' link'+(rows.length===1?'':'s')+' matching "'+q+'"?'+(op==='delete'?' This cannot be undone.':'')))return;
+    try{
+      const r=await api('links/bulk',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({op:op,q:q})});
+      if(op==='delete') d.links=d.links.filter(x=>!rows.some(rr=>rr.code===x.code));
+      else rows.forEach(rr=>{const x=row(rr.code);if(x)x.revoked=Date.now()});
+      draw();badge('links',fmtN(d.links.length));
+      alert(r.affected+' of '+r.matched+' '+(op==='delete'?'deleted':'revoked'));
+    }catch(err){alert(err.message)}
+  };
+  $('#brev').onclick=()=>bulk('revoke');
+  $('#bdel').onclick=()=>bulk('delete');
 }
 
 async function renderTraffic(v){

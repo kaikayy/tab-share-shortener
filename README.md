@@ -27,9 +27,10 @@ shortener* is the recommended provider.)
   `SHORTENER_ANALYTICS=0`. Identical links are de-duplicated.
 - **Optional admin panel** at `/admin` (token-gated, off by default): link
   table (target **host only**; a destination is revealed one link at a time),
-  revoke, manual/vanity links, host-allowlist editor, the analytics above, and
-  an on-request histogram of the *domains* people bundle (`reddit.com`, never
-  the post). See [SELF-HOSTING.md](SELF-HOSTING.md#admin-panel).
+  revoke / bulk revoke or delete by filter, manual/vanity links, host-allowlist
+  editor, the analytics above, an on-request histogram of the *domains* people
+  bundle (`reddit.com`, never the post), and a Prometheus `/admin/metrics`
+  endpoint. See [SELF-HOSTING.md](SELF-HOSTING.md#admin-panel).
 - **Not an open redirector.** It only shortens links pointing at a host on its
   allowlist (your Tab Share viewer), which is what keeps it off the phishing radar.
 - **No npm dependencies.** Plain Node 20+ (24+ for the SQLite backend). Storage
@@ -101,7 +102,8 @@ independent testing as of 2026 and can change. Full detail for this one is in
 | `GET /new?url=<enc>&mode=` | compat shim | `200` `text/plain` short URL; keep token in the `X-Keep-Token` header |
 | `GET /:code` | | `302` to the target (HTML meta-refresh if the target is very long) |
 | `GET /api/health` | | `200 { ok, store, allowedHosts, ... }` |
-| `/admin`, `/admin/api/*` | `Bearer` / cookie token | panel + JSON API; `404` when `SHORTENER_ADMIN_TOKEN` is unset |
+| `/admin`, `/admin/api/*` | `Bearer` / cookie token | panel + JSON API (incl. `POST /admin/api/links/bulk`); `404` when `SHORTENER_ADMIN_TOKEN` is unset |
+| `GET /admin/metrics` | `Bearer` / cookie token | Prometheus text exposition |
 
 **How long a short link lives.** By default a new short code stops resolving
 **30 days** after it was created (`SHORTENER_TTL_DAYS`). The full share link the

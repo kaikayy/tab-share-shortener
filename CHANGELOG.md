@@ -7,6 +7,23 @@ All notable changes to the Tab Share link shortener. Format loosely follows
 
 _No entries yet._
 
+## [0.4.5] - 2026-09-03
+
+### Added
+
+- **Bulk revoke / delete by filter in the admin panel.** The Links tab has
+  *Revoke matching* and *Delete matching* buttons that act on every link the
+  filter box selects (matched by slug or target-host substring, same as the
+  list filter). A non-empty filter is required -- there is deliberately no
+  "act on every link". New endpoint: `POST /admin/api/links/bulk { op, q }`
+  where `op` is `revoke`, `unrevoke` or `delete`; returns `{ matched, affected }`.
+- **`GET /admin/metrics` -- Prometheus text exposition.** Behind the same admin
+  token (unset token -> the whole `/admin` tree still 404s). Store gauges
+  (`tabshare_shortener_links`, `_links_revoked`, `_links_expiring`,
+  `_store_bytes`, `_uptime_seconds`) and activity counters over the analytics
+  retention window (`_redirects_total`, `_creates_total`, `_rejects_total`).
+  Point a scraper at it with `Authorization: Bearer <token>`.
+
 ## [0.4.0] - 2026-09-03
 
 ### Changed
