@@ -275,7 +275,9 @@ const INFO_PAGE =
   `<p>Shorten a Tab Share link:</p>` +
   `<pre><code>curl -X POST ${esc(config.base)}/api/shorten \\\n  -H 'content-type: application/json' \\\n  -d '{"url":"https://.../#token","mode":"words"}'</code></pre>` +
   `<p>Modes: <code>code</code> (random) or <code>words</code> (readable). ` +
-  `Source: <a href="https://github.com/kaikayy/multi-link-share">AGPL-3.0</a>.</p>`;
+  `Source: <a href="https://github.com/kaikayy/multi-link-share">AGPL-3.0</a>.</p>` +
+  `<p><a href="https://kaikay.de/privacy">Privacy policy</a> &middot; ` +
+  `<a href="https://kaikay.de/impressum">Legal notice</a></p>`;
 
 /* ------------------------------ router ------------------------------ */
 

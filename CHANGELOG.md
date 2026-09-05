@@ -5,7 +5,10 @@ All notable changes to the Tab Share link shortener. Format loosely follows
 
 ## [Unreleased]
 
-_No entries yet._
+### Added
+
+- The info page (`GET /`) now links to `kaikay.de/privacy` and
+  `kaikay.de/impressum`.
 
 ## [0.4.5] - 2026-09-03
 
